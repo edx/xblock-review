@@ -53,7 +53,7 @@ class ReviewXBlock(XBlock):
             html = html.format(NUMBER_DESIRED=self.num_desired)
             for i in xrange(self.num_desired):
                 content = self.resource_string("static/html/review_content.html")
-                content = content.format(PROBLEM_URL=self.url_list[i], INDEX=(i+1))
+                content = content.format(PROBLEM_URL=url_list[i], INDEX=(i+1))
                 html += content
             # Need to close out the div from the original review.html
             html += '</div>'
