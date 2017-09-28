@@ -35,7 +35,6 @@ body {
   width: 100%;
 }
 
-.no-js .review-content,
 .review-content--active {
   display: block;
 }

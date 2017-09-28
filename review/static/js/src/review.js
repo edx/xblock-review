@@ -36,19 +36,19 @@ function ReviewXBlock(runtime, element) {
             }, 1000));
           }
 
-          // Possible way to check if the iFrame loaded got a 404
-          // This shouldn't happen, but is a possibility if course teams change
-          // problems in their course before I have time to update the review course
-          if ($iframe['0'].innerHTML) {
-            var title = $iframe['0'].contentDocument.title.toLowerCase();
-            if (title.indexOf("page not found")>=0 || title.indexOf("404")>=0) {
+          // Need to wait for the iFrame to load so there is a body node
+          $iframe['0'].addEventListener("load", function() {
+            // Possible way to check if the iFrame loaded got a 404
+            /* title = $iframe['0'].contentDocument.title.toLowerCase();
+            if (title.indexOf("page not found") > -1 || title.indexOf("404") > -1) {
               // I would like to change the HTML to display some other message. Not sure if possible
-              // I think an issue here is that it redirects the actual page.
-              // Not sure how to handle that
               // $iframe.attr('src', '');
-            }
-          } else {
-          }
+            } */
+
+            // Remove the 'skip to main content' link inside of an iFrame
+            skipLink = $iframe['0'].contentDocument.body.querySelector('.nav-skip');
+            $iframe['0'].contentDocument.body.removeChild(skipLink);
+          });
         }
 
         // Toggle active state (+/-)
