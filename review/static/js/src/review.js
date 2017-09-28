@@ -6,7 +6,9 @@ function ReviewXBlock(runtime, element) {
     $('.review-button').on('click', function(event) {
       var $btn = $(event.currentTarget),
           $content = $btn.siblings('.review-content'),
-          $iframe = $content.find('iframe');
+          $iframe = $content.find('iframe'),
+          title,
+          skipLink;
 
       if (!$btn.hasClass('disable-click')) {
         // Prevents double clicking which caused issues from seeing the problems
