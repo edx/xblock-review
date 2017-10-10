@@ -8,6 +8,8 @@ from courseware.models import StudentModule
 from opaque_keys.edx.locator import CourseLocator
 from opaque_keys.edx.keys import UsageKey
 from enrollment.api import get_enrollment, add_enrollment, update_enrollment
+from lms.djangoapps.course_blocks.api import get_course_blocks
+from xmodule.modulestore.django import modulestore
 import crum
 import random
 import json
@@ -16,11 +18,15 @@ log = logging.getLogger(__name__)
 
 REVIEW_COURSE_MAPPING = {
     # Sandbox
-    'course-v1:DillonX+DAD301+2017_T3': 'DillonX+DAD302+2017_T3'
+    'course-v1:DillonX+DAD301+2017_T3': 'DillonX+DAD302+2017_T3',
+    # Sandbox demo Anant's course
+    'course-v1:MITx+6.002.3x+2T2016': 'MITx+6.002.3rx+2T2016'
 }
 ENROLLMENT_COURSE_MAPPING = {
     # Sandbox
-    'course-v1:DillonX+DAD301+2017_T3': 'course-v1:DillonX+DAD302+2017_T3'
+    'course-v1:DillonX+DAD301+2017_T3': 'course-v1:DillonX+DAD302+2017_T3',
+    # Sandbox demo Anant's course
+    'course-v1:MITx+6.002.3x+2T2016': 'course-v1:MITx+6.002.3rx+2T2016'
 }
 TEMPLATE_URL = 'https://dillon-dumesnil.sandbox.edx.org/xblock/block-v1:{course_id}+type@problem+block@{problem_id}'
 
@@ -28,20 +34,16 @@ TEMPLATE_URL = 'https://dillon-dumesnil.sandbox.edx.org/xblock/block-v1:{course_
 def get_records(num_desired, current_course):
     '''
     Doc String
+    Returns a list of num_desired tuples in the form (URL to display, correctness, attempts)
     '''
     user = crum.get_current_user()
 
-    # If the user is not enrolled in the review version of the course,
-    # they are unable to see any of the problems. This ensures they
-    # are enrolled so they can see review problems.
-    enrollment_course_id = ENROLLMENT_COURSE_MAPPING[str(current_course)]
-    enrollment_status = get_enrollment(user.username, enrollment_course_id)
-    if not enrollment_status:
-        add_enrollment(user.username, enrollment_course_id)
-    elif not enrollment_status['is_active']:
-        update_enrollment(user.username, enrollment_course_id, is_active=True)
+    enroll_user(user, current_course)
+
+    store = modulestore()
+    course_usage_key = store.make_course_usage_key(current_course)
     
-    problem_ids = []
+    problem_data = []
     # Each record corresponds to a problem the user has loaded
     # in the original course
     for record in StudentModule.objects.filter(**{'student_id': user.id, 'course_id': current_course, 'module_type': 'problem'}):
@@ -49,37 +51,98 @@ def get_records(num_desired, current_course):
         # block-v1:{course_id}+type@problem+block@{problem_id}
         problem_id = str(record.module_state_key).split("@")[-1]
 
-        '''
-        Won't show a review problem to a learner if the learner
-        has already correctly answered the review problem.
-
-        Catches IndexError if learner has never seen the review problem before.
-        Catches KeyError if learner has never attempted the review problem before.
-        '''
-        try:
-            review_record = StudentModule.objects.filter(**{'student_id': user.id,
-                'module_state_key': UsageKey.from_string(
-                    'block-v1:'+REVIEW_COURSE_MAPPING[str(current_course)]+
-                    '+type@problem+block@'+problem_id)})[0]
-            review_record_state = json.loads(review_record.state)
-            for key in review_record_state["correct_map"].keys():
-                # If any part of a problem was incorrect,
-                # it is eligible to be shown again
-                if review_record_state["correct_map"][key]["correctness"] != 'correct':
-                    problem_ids.append(problem_id)
-                    break
-        except (IndexError, KeyError):
-            problem_ids.append(problem_id)
+        # To be used for finding the vertical associated with a problem
+        # course_blocks = get_course_blocks(user, course_usage_key)
 
         # Actual logic regarding the record should go here
         state = json.loads(record.state)
 
-    if len(problem_ids) < num_desired:
+        # The key 'selected' shows up if a problem comes from a
+        # library content module. These cause issues so we skip this.
+        # Issue: Library content contains problems but the CSM brings up
+        # the library content and not the problems within
+        if 'selected' in state:
+            continue
+
+        correctness, attempts = get_correctness_and_attempts(state)
+
+        # if not is_correct_review_problem(user, current_course, problem_id):
+        #     problem_data.append(problem_id)
+        problem_data.append((problem_id, correctness, attempts))
+
+    if len(problem_data) < num_desired:
         return []
 
-    problems_to_show = random.sample(problem_ids, num_desired)
+    problems_to_show = random.sample(problem_data, num_desired)
     review_course_id = REVIEW_COURSE_MAPPING[str(current_course)]
     urls = []
-    for problem in problems_to_show:
-        urls.append(TEMPLATE_URL.format(course_id=review_course_id, problem_id=problem))
+    for problem, correctness, attempts in problems_to_show:
+        urls.append((TEMPLATE_URL.format(course_id=review_course_id, problem_id=problem), correctness, attempts))
     return urls
+
+def enroll_user(user, current_course):
+    '''
+    If the user is not enrolled in the review version of the course,
+    they are unable to see any of the problems. This ensures they
+    are enrolled so they can see review problems.
+    '''
+    enrollment_course_id = ENROLLMENT_COURSE_MAPPING[str(current_course)]
+    enrollment_status = get_enrollment(user.username, enrollment_course_id)
+    if not enrollment_status:
+        add_enrollment(user.username, enrollment_course_id)
+    elif not enrollment_status['is_active']:
+        update_enrollment(user.username, enrollment_course_id, is_active=True)
+
+def delete_state_of_review_problem(user, current_course, problem_id):
+    '''
+    Deletes the state of a review problem so it can be used infinitely
+    many times.
+    '''
+    pass
+
+def is_correct_review_problem(user, current_course, problem_id):
+    '''
+    Checks a review problem to see if the learner has already correctly
+    answered it.
+
+    Returns True if the review problem was correctly answered, False otherwise
+    Catches IndexError if learner has never seen the review problem before.
+    Catches KeyError if learner has never attempted the review problem before.
+    '''
+    try:
+        review_record = StudentModule.objects.filter(**{'student_id': user.id,
+            'module_state_key': UsageKey.from_string(
+                'block-v1:'+REVIEW_COURSE_MAPPING[str(current_course)]+
+                '+type@problem+block@'+problem_id)})[0]
+        review_record_state = json.loads(review_record.state)
+        for key in review_record_state["correct_map"].keys():
+            # If any part of a problem was incorrect,
+            # it is eligible to be shown again
+            if review_record_state["correct_map"][key]["correctness"] != 'correct':
+                return False
+        return True
+    except (IndexError, KeyError):
+        return False
+
+def get_correctness_and_attempts(state):
+    '''
+    Input: state of a problem
+
+    Returns a tuple of (correctness, attempts)
+        correctness (str): 'correct' or 'incorrect'
+        attempts (int): 0 if never attempted, else number of times attempted
+    Catches KeyError if learner never attempted the problem
+    '''
+    if state['score']['raw_earned'] == state['score']['raw_possible']:
+        correctness = 'correct'
+    else:
+        correctness = 'incorrect'
+    if 'attempts' in state:
+        attempts = state['attempts']
+    else:
+        attempts = 0
+    # try:
+    #     attempts = state['attempts']
+    # except KeyError:
+    #     attempts = 0
+    return (correctness, attempts)

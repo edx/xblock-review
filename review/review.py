@@ -45,6 +45,7 @@ class ReviewXBlock(XBlock):
         return data.decode("utf8")
 
     def get_html(self):
+        # url_list elements have the form (url, correctness, attempts)
         url_list = get_records(self.num_desired, self.course_id)
         if len(url_list) != self.num_desired:
             html = self.resource_string("static/html/no_review.html")
@@ -52,8 +53,9 @@ class ReviewXBlock(XBlock):
             html = self.resource_string("static/html/review.html")
             html = html.format(NUMBER_DESIRED=self.num_desired)
             for i in xrange(self.num_desired):
-                content = self.resource_string("static/html/review_content.html")
-                content = content.format(PROBLEM_URL=url_list[i], INDEX=(i+1))
+                content = self.resource_string("static/html/review_content_problem.html")
+                content = content.format(PROBLEM_URL=url_list[i][0], INDEX=(i+1),
+                                        CORRECTNESS=url_list[i][1], NUM_ATTEMPTS=url_list[i][2])
                 html += content
             # Need to close out the div from the original review.html
             html += '</div>'
