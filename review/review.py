@@ -5,7 +5,7 @@ from xblock.core import XBlock
 from xblock.fields import Integer, String, Scope
 from xblock.fragment import Fragment
 
-from get_review_ids import get_records
+from get_review_ids import get_problems, get_vertical
 
 import logging
 
@@ -14,7 +14,13 @@ log = logging.getLogger(__name__)
 # Make '_' a no-op so we can scrape strings. Using lambda instead of
 #  `django.utils.translation.ugettext_noop` because Django cannot be imported in this file
 _ = lambda text: text
-
+SHOW_PROBLEMS = set([
+    'course-v1:MITx+6.002.3x+2T2016',
+    'course-v1:MITx+2.01x+3T2017',
+])
+SHOW_VERTICAL = set([
+    # 'course-v1:MITx+2.01x+3T2017',
+])
 
 class ReviewXBlock(XBlock):
     """
@@ -45,20 +51,31 @@ class ReviewXBlock(XBlock):
         return data.decode("utf8")
 
     def get_html(self):
-        # url_list elements have the form (url, correctness, attempts)
-        url_list = get_records(self.num_desired, self.course_id)
-        if len(url_list) != self.num_desired:
-            html = self.resource_string("static/html/no_review.html")
-        else:
-            html = self.resource_string("static/html/review.html")
-            html = html.format(NUMBER_DESIRED=self.num_desired)
-            for i in xrange(self.num_desired):
-                content = self.resource_string("static/html/review_content_problem.html")
-                content = content.format(PROBLEM_URL=url_list[i][0], INDEX=(i+1),
-                                        CORRECTNESS=url_list[i][1], NUM_ATTEMPTS=url_list[i][2])
+        html = self.resource_string("static/html/no_review.html")
+        if str(self.course_id) in SHOW_PROBLEMS:
+            # url_list elements have the form (url, correctness, attempts)
+            url_list = get_problems(self.num_desired, self.course_id)
+            if len(url_list) == self.num_desired:
+                html = self.resource_string("static/html/review.html")
+                html = html.format(NUMBER_DESIRED=self.num_desired)
+                for i in xrange(self.num_desired):
+                    content = self.resource_string("static/html/review_content_problem.html")
+                    content = content.format(PROBLEM_URL=url_list[i][0], INDEX=(i+1),
+                                             CORRECTNESS=url_list[i][1], NUM_ATTEMPTS=url_list[i][2])
+                    html += content
+                # Need to close out the div from the original review.html
+                html += '</div>'
+
+        elif str(self.course_id) in SHOW_VERTICAL:
+            vertical_url = get_vertical(self.course_id)
+            if vertical_url:
+                html = self.resource_string("static/html/review.html")
+                html = html.format(NUMBER_DESIRED='some')
+                content = self.resource_string("static/html/review_content_vertical.html")
+                content = content.format(VERTICAL_URL=vertical_url)
                 html += content
-            # Need to close out the div from the original review.html
-            html += '</div>'
+                # Need to close out the div from the original review.html
+                html += '</div>'
         return html
 
     def student_view(self, context=None):

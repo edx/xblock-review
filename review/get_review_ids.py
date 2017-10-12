@@ -20,28 +20,31 @@ REVIEW_COURSE_MAPPING = {
     # Sandbox
     'course-v1:DillonX+DAD301+2017_T3': 'DillonX+DAD302+2017_T3',
     # Sandbox demo Anant's course
-    'course-v1:MITx+6.002.3x+2T2016': 'MITx+6.002.3rx+2T2016'
+    'course-v1:MITx+6.002.3x+2T2016': 'MITx+6.002.3rx+2T2016',
+    # Sandbox demo Simona's course
+    'course-v1:MITx+2.01x+3T2017': 'MITx+2.01rx+3T2017',
 }
 ENROLLMENT_COURSE_MAPPING = {
     # Sandbox
     'course-v1:DillonX+DAD301+2017_T3': 'course-v1:DillonX+DAD302+2017_T3',
     # Sandbox demo Anant's course
-    'course-v1:MITx+6.002.3x+2T2016': 'course-v1:MITx+6.002.3rx+2T2016'
+    'course-v1:MITx+6.002.3x+2T2016': 'course-v1:MITx+6.002.3rx+2T2016',
+    # Sandbox demo Simona's course
+    'course-v1:MITx+2.01x+3T2017': 'course-v1:MITx+2.01rx+3T2017',
 }
-TEMPLATE_URL = 'https://dillon-dumesnil.sandbox.edx.org/xblock/block-v1:{course_id}+type@problem+block@{problem_id}'
+TEMPLATE_URL = 'https://dillon-demo.sandbox.edx.org/xblock/block-v1:{course_id}+type@{type}+block@{xblock_id}'
 
 
-def get_records(num_desired, current_course):
+def get_problems(num_desired, current_course):
     '''
     Doc String
     Returns a list of num_desired tuples in the form (URL to display, correctness, attempts)
     '''
+    log.critical("********** get_problems *************")
+    log.critical(TEMPLATE_URL)
     user = crum.get_current_user()
 
     enroll_user(user, current_course)
-
-    store = modulestore()
-    course_usage_key = store.make_course_usage_key(current_course)
     
     problem_data = []
     # Each record corresponds to a problem the user has loaded
@@ -50,9 +53,6 @@ def get_records(num_desired, current_course):
         # record.module_state_key takes the form: 
         # block-v1:{course_id}+type@problem+block@{problem_id}
         problem_id = str(record.module_state_key).split("@")[-1]
-
-        # To be used for finding the vertical associated with a problem
-        # course_blocks = get_course_blocks(user, course_usage_key)
 
         # Actual logic regarding the record should go here
         state = json.loads(record.state)
@@ -77,8 +77,59 @@ def get_records(num_desired, current_course):
     review_course_id = REVIEW_COURSE_MAPPING[str(current_course)]
     urls = []
     for problem, correctness, attempts in problems_to_show:
-        urls.append((TEMPLATE_URL.format(course_id=review_course_id, problem_id=problem), correctness, attempts))
+        urls.append((TEMPLATE_URL.format(course_id=review_course_id,
+                    type='problem', xblock_id=problem), correctness, attempts))
     return urls
+
+def get_vertical(current_course):
+    '''
+    Doc String. The vertical will contain 1 or more problems
+    Returns a vertical id (str) to render for review.
+    '''
+    user = crum.get_current_user()
+
+    enroll_user(user, current_course)
+
+    store = modulestore()
+    course_usage_key = store.make_course_usage_key(current_course)
+    course_blocks = get_course_blocks(user, course_usage_key)
+
+    vertical_data = set()
+
+    # Each record corresponds to a problem the user has loaded
+    # in the original course
+    for record in StudentModule.objects.filter(**{'student_id': user.id, 'course_id': current_course, 'module_type': 'problem'}):
+        # record.module_state_key takes the form:
+        # block-v1:{course_id}+type@problem+block@{problem_id}
+        problem_id = str(record.module_state_key).split("@")[-1]
+
+        # Actual logic regarding the record should go here
+        state = json.loads(record.state)
+
+        # The key 'selected' shows up if a problem comes from a
+        # library content module. These cause issues so we skip this.
+        # Issue: Library content contains problems but the CSM brings up
+        # the library content and not the problems within
+        if 'selected' in state:
+            continue
+
+        # parent takes the form: block-v1:{course_id}+type@vertical+block@{vertical_id}
+        parent = course_blocks.get_parents(record.module_state_key)[0]
+        vertical_id = str(parent).split("@")[-1]
+
+        # correctness, attempts = get_correctness_and_attempts(state)
+
+        # if not is_correct_review_problem(user, current_course, problem_id):
+        #     vertical_data.append(parent)
+        vertical_data.add(vertical_id)
+
+    if len(vertical_data) < 1:
+        return []
+
+    vertical_to_show = random.sample(vertical_data, 1)[0]
+    review_course_id = REVIEW_COURSE_MAPPING[str(current_course)]
+    return (TEMPLATE_URL.format(course_id=review_course_id,
+                    type='vertical', xblock_id=vertical_to_show))
 
 def enroll_user(user, current_course):
     '''
