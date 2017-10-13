@@ -23,6 +23,8 @@ REVIEW_COURSE_MAPPING = {
     'course-v1:MITx+6.002.3x+2T2016': 'MITx+6.002.3rx+2T2016',
     # Sandbox demo Simona's course
     'course-v1:MITx+2.01x+3T2017': 'MITx+2.01rx+3T2017',
+    'course-v1:MITx+18.01.2x+3T2017': 'MITx+18.01.2rx+3T2017',
+    'course-v1:MITx+8.01.2x+3T2017': 'MITx+8.01.2rx+3T2017',
 }
 ENROLLMENT_COURSE_MAPPING = {
     # Sandbox
@@ -31,6 +33,8 @@ ENROLLMENT_COURSE_MAPPING = {
     'course-v1:MITx+6.002.3x+2T2016': 'course-v1:MITx+6.002.3rx+2T2016',
     # Sandbox demo Simona's course
     'course-v1:MITx+2.01x+3T2017': 'course-v1:MITx+2.01rx+3T2017',
+    'course-v1:MITx+18.01.2x+3T2017': 'course-v1:MITx+18.01.2rx+3T2017',
+    'course-v1:MITx+8.01.2x+3T2017': 'course-v1:MITx+8.01.2rx+3T2017',
 }
 TEMPLATE_URL = 'https://dillon-demo.sandbox.edx.org/xblock/block-v1:{course_id}+type@{type}+block@{xblock_id}'
 
@@ -40,8 +44,6 @@ def get_problems(num_desired, current_course):
     Doc String
     Returns a list of num_desired tuples in the form (URL to display, correctness, attempts)
     '''
-    log.critical("********** get_problems *************")
-    log.critical(TEMPLATE_URL)
     user = crum.get_current_user()
 
     enroll_user(user, current_course)

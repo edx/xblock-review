@@ -16,10 +16,11 @@ log = logging.getLogger(__name__)
 _ = lambda text: text
 SHOW_PROBLEMS = set([
     'course-v1:MITx+6.002.3x+2T2016',
-    'course-v1:MITx+2.01x+3T2017',
+    'course-v1:MITx+18.01.2x+3T2017',
 ])
 SHOW_VERTICAL = set([
-    # 'course-v1:MITx+2.01x+3T2017',
+    'course-v1:MITx+2.01x+3T2017',
+    'course-v1:MITx+8.01.2x+3T2017',
 ])
 
 class ReviewXBlock(XBlock):
