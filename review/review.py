@@ -14,13 +14,14 @@ log = logging.getLogger(__name__)
 # Make '_' a no-op so we can scrape strings. Using lambda instead of
 #  `django.utils.translation.ugettext_noop` because Django cannot be imported in this file
 _ = lambda text: text
+
 SHOW_PROBLEMS = set([
+    # This is here for testing purposes. Do not remove
+    'DillonX/DAD101x/3T2017',
+    # Anant's course
     'course-v1:MITx+6.002.3x+2T2016',
-    'course-v1:MITx+18.01.2x+3T2017',
 ])
 SHOW_VERTICAL = set([
-    'course-v1:MITx+2.01x+3T2017',
-    'course-v1:MITx+8.01.2x+3T2017',
 ])
 
 class ReviewXBlock(XBlock):

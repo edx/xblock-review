@@ -16,32 +16,32 @@ import json
 
 log = logging.getLogger(__name__)
 
+# TODO: Switch to using CourseLocators and/or CourseKeys everywhere
 REVIEW_COURSE_MAPPING = {
-    # Sandbox
-    'course-v1:DillonX+DAD301+2017_T3': 'DillonX+DAD302+2017_T3',
-    # Sandbox demo Anant's course
+    # Course used for testing. DO NOT REMOVE
+    'DillonX/DAD101x/3T2017': 'DillonX/DAD101rx/3T2017',
+    # Anant's course
     'course-v1:MITx+6.002.3x+2T2016': 'MITx+6.002.3rx+2T2016',
-    # Sandbox demo Simona's course
-    'course-v1:MITx+2.01x+3T2017': 'MITx+2.01rx+3T2017',
-    'course-v1:MITx+18.01.2x+3T2017': 'MITx+18.01.2rx+3T2017',
-    'course-v1:MITx+8.01.2x+3T2017': 'MITx+8.01.2rx+3T2017',
 }
 ENROLLMENT_COURSE_MAPPING = {
-    # Sandbox
-    'course-v1:DillonX+DAD301+2017_T3': 'course-v1:DillonX+DAD302+2017_T3',
-    # Sandbox demo Anant's course
+    # Course used for testing. DO NOT REMOVE
+    'DillonX/DAD101x/3T2017': 'DillonX/DAD101rx/3T2017',
+    # Anant's course
     'course-v1:MITx+6.002.3x+2T2016': 'course-v1:MITx+6.002.3rx+2T2016',
-    # Sandbox demo Simona's course
-    'course-v1:MITx+2.01x+3T2017': 'course-v1:MITx+2.01rx+3T2017',
-    'course-v1:MITx+18.01.2x+3T2017': 'course-v1:MITx+18.01.2rx+3T2017',
-    'course-v1:MITx+8.01.2x+3T2017': 'course-v1:MITx+8.01.2rx+3T2017',
 }
-TEMPLATE_URL = 'https://dillon-demo.sandbox.edx.org/xblock/block-v1:{course_id}+type@{type}+block@{xblock_id}'
+TEMPLATE_URL = 'https://courses.edx.org/xblock/block-v1:{course_id}+type@{type}+block@{xblock_id}'
 
 
 def get_problems(num_desired, current_course):
     '''
-    Doc String
+    Looks through all the problems a learner has previously loaded and randomly
+    selects num_desired of them. Also checks if the learner had originally
+    answered it correctly or incorrectly and after how many attempts.
+
+    Parameters:
+        num_desired (int): the number of desired problems to show the learner
+        current_course (CourseLocator): The course the learner is currently in
+
     Returns a list of num_desired tuples in the form (URL to display, correctness, attempts)
     '''
     user = crum.get_current_user()
@@ -68,8 +68,6 @@ def get_problems(num_desired, current_course):
 
         correctness, attempts = get_correctness_and_attempts(state)
 
-        # if not is_correct_review_problem(user, current_course, problem_id):
-        #     problem_data.append(problem_id)
         problem_data.append((problem_id, correctness, attempts))
 
     if len(problem_data) < num_desired:
@@ -85,8 +83,14 @@ def get_problems(num_desired, current_course):
 
 def get_vertical(current_course):
     '''
-    Doc String. The vertical will contain 1 or more problems
-    Returns a vertical id (str) to render for review.
+    Looks through all the problems a learner has previously loaded and
+    finds their parent vertical. Then randomly selects a single vertical
+    to show the learner.
+
+    Parameters:
+        current_course (CourseLocator): The course the learner is currently in
+
+    Returns a url (str) with the vertical id to render for review.
     '''
     user = crum.get_current_user()
 
@@ -119,12 +123,7 @@ def get_vertical(current_course):
         parent = course_blocks.get_parents(record.module_state_key)[0]
         vertical_id = str(parent).split("@")[-1]
 
-        # correctness, attempts = get_correctness_and_attempts(state)
-
-        # if not is_correct_review_problem(user, current_course, problem_id):
-        #     vertical_data.append(parent)
         vertical_data.add(vertical_id)
-
     if len(vertical_data) < 1:
         return []
 
@@ -138,6 +137,10 @@ def enroll_user(user, current_course):
     If the user is not enrolled in the review version of the course,
     they are unable to see any of the problems. This ensures they
     are enrolled so they can see review problems.
+
+    Parameters:
+        user (User): the current user interacting with the review xBlock
+        current_course (CourseLocator): The course the learner is currently in
     '''
     enrollment_course_id = ENROLLMENT_COURSE_MAPPING[str(current_course)]
     enrollment_status = get_enrollment(user.username, enrollment_course_id)
@@ -150,8 +153,39 @@ def delete_state_of_review_problem(user, current_course, problem_id):
     '''
     Deletes the state of a review problem so it can be used infinitely
     many times.
+
+    Parameters:
+        user (User): the current user interacting with the review xBlock
+        current_course (CourseLocator): The course the learner is currently in
+        problem_id (str?): The problem id whose state should be cleared
     '''
     pass
+
+def get_correctness_and_attempts(state):
+    '''
+    From the state of a problem from the Coursware Student Module,
+    determine if the learner correctly answered it initially and
+    the number of attempts they had for the original problem
+    
+    Parameter:
+        state (dict): The state of a problem
+
+    Returns a tuple of (correctness, attempts)
+        correctness (str): 'correct' or 'incorrect'
+        attempts (int): 0 if never attempted, else number of times attempted
+    Catches KeyError if learner never attempted the problem
+    '''
+    if state['score']['raw_earned'] == state['score']['raw_possible']:
+        correctness = 'correct'
+    else:
+        correctness = 'incorrect'
+
+    if 'attempts' in state:
+        attempts = state['attempts']
+    else:
+        attempts = 0
+
+    return (correctness, attempts)
 
 def is_correct_review_problem(user, current_course, problem_id):
     '''
@@ -176,26 +210,3 @@ def is_correct_review_problem(user, current_course, problem_id):
         return True
     except (IndexError, KeyError):
         return False
-
-def get_correctness_and_attempts(state):
-    '''
-    Input: state of a problem
-
-    Returns a tuple of (correctness, attempts)
-        correctness (str): 'correct' or 'incorrect'
-        attempts (int): 0 if never attempted, else number of times attempted
-    Catches KeyError if learner never attempted the problem
-    '''
-    if state['score']['raw_earned'] == state['score']['raw_possible']:
-        correctness = 'correct'
-    else:
-        correctness = 'incorrect'
-    if 'attempts' in state:
-        attempts = state['attempts']
-    else:
-        attempts = 0
-    # try:
-    #     attempts = state['attempts']
-    # except KeyError:
-    #     attempts = 0
-    return (correctness, attempts)
