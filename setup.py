@@ -20,12 +20,18 @@ def package_data(pkg, roots):
 
     return {pkg: data}
 
+with open('README.md') as readme:
+    long_description = readme.read()
 
 setup(
     name='xblock-review',
     version='0.1',
-    description='XBlock -  Review',   # TODO: write a better description.
-    license='UNKNOWN',          # TODO: choose a license: 'AGPL v3' and 'Apache 2.0' are popular.
+    description='The Review xBlock is designed to act as a review tool for learners in their edX course.',
+    long_description = long_description,
+    license='AGPL v3',
+    author="edX",
+    author_email="oscm@edx.org",
+    url='https://github.com/edx/xblock-review',
     packages=[
         'review',
     ],
