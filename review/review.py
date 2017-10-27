@@ -59,24 +59,26 @@ class ReviewXBlock(XBlock):
             url_list = get_problems(self.num_desired, self.course_id)
             if len(url_list) == self.num_desired:
                 html = self.resource_string("static/html/review.html")
+                # Want to wrap all of the problems inside of a div
+                html += '<div>\n'
                 html = html.format(NUMBER_DESIRED=self.num_desired)
                 for i in xrange(self.num_desired):
                     content = self.resource_string("static/html/review_content_problem.html")
                     content = content.format(PROBLEM_URL=url_list[i][0], INDEX=(i+1),
                                              CORRECTNESS=url_list[i][1], NUM_ATTEMPTS=url_list[i][2])
                     html += content
-                # Need to close out the div from the original review.html
                 html += '</div>'
 
         elif str(self.course_id) in SHOW_VERTICAL:
             vertical_url = get_vertical(self.course_id)
             if vertical_url:
                 html = self.resource_string("static/html/review.html")
+                # Want to wrap all of the problems inside of a div
+                html += '<div>\n'
                 html = html.format(NUMBER_DESIRED='some')
                 content = self.resource_string("static/html/review_content_vertical.html")
                 content = content.format(VERTICAL_URL=vertical_url)
                 html += content
-                # Need to close out the div from the original review.html
                 html += '</div>'
         return html
 
