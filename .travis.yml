@@ -1,3 +1,11 @@
+language: python
+
+install:
+  make requirements
+
+script:
+  make test
+
 deploy:
   provider: pypi
   user: edx
