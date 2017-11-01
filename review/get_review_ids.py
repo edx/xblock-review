@@ -17,8 +17,8 @@ from opaque_keys.edx.keys import UsageKey
 from enrollment.api import get_enrollment, add_enrollment, update_enrollment
 from lms.djangoapps.course_blocks.api import get_course_blocks
 from xmodule.modulestore.django import modulestore
-import crum
 from datetime import datetime
+import crum
 import json
 import random
 import pytz

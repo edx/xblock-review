@@ -23,10 +23,6 @@ function ReviewXBlock(runtime, element, studio_view=false) {
         */
         $btn.addClass('disable-click');
 
-        setTimeout(function() {
-          $btn.removeClass('disable-click');
-        }, 100);
-
         // iFrame loads after the button is clicked so there is not
         // a large amount of loading upon going to the xBlock
         if ($iframe.attr('src') === '') {
@@ -69,6 +65,8 @@ function ReviewXBlock(runtime, element, studio_view=false) {
 
         // Toggle active state (show/hide)
         $content.toggleClass('review-content--active');
+
+        $btn.removeClass('disable-click');
       }
     });
   });

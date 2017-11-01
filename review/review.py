@@ -8,6 +8,8 @@ from xblockutils.resources import ResourceLoader
 
 from django.template.loader import get_template
 
+from django.template.loader import get_template
+
 from get_review_ids import get_problems, get_vertical
 from configuration import SHOW_PROBLEMS, SHOW_VERTICAL
 
@@ -40,7 +42,7 @@ class ReviewXBlock(XBlock):
         help=_("Defines the number of problems the review module will display "
                "to the learner."),
         default=5,
-        scope=Scope.content
+        scope=Scope.settings
     )
 
     def resource_string(self, path):
@@ -102,7 +104,7 @@ class ReviewXBlock(XBlock):
             html = self.get_problem_html()
         elif str(self.course_id) in SHOW_VERTICAL:
             html = self.get_vertical_html()
-        if not html:
+        if html is None:
             # Default html if no problems or vertical are shown
             html = loader.render_django_template("/templates/no_review.html")
         frag = Fragment(html)
