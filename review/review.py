@@ -6,6 +6,8 @@ from xblock.fields import Integer, String, Scope
 from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 
+from django.template.loader import get_template
+
 from get_review_ids import get_problems, get_vertical
 from configuration import SHOW_PROBLEMS, SHOW_VERTICAL
 
