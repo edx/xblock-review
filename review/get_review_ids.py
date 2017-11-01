@@ -1,5 +1,12 @@
 '''
-Description
+The logic for actually grabbing review content is contained here for the
+Review xBlock. This works by having a copy of the actual course a learner
+is interacting with that is hidden from learners. This copied course hosts
+the content we will show as review so the review content displayed has a
+fresh state and can be set to ungraded so it doesn't affect the learners'
+grades. There are two ways review content can be grabbed:
+    On a per problem basis
+    On a unit basis (this would be single view that contains multiple problems)
 '''
 
 import logging
@@ -17,6 +24,14 @@ import json
 log = logging.getLogger(__name__)
 
 # TODO: Switch to using CourseLocators and/or CourseKeys everywhere
+
+'''
+The mappings here are necessary to grab the review content from a review
+version of the course (a copy where problems are not graded and have
+unlimited attempts).
+When accessed, the key is the course the learner is currently interacting
+with and the value is the corresponding review course.
+'''
 REVIEW_COURSE_MAPPING = {
     # Course used for testing. DO NOT REMOVE
     'DillonX/DAD101x/3T2017': 'DillonX/DAD101rx/3T2017',
@@ -49,9 +64,9 @@ def get_problems(num_desired, current_course):
     enroll_user(user, current_course)
     
     problem_data = []
-    # Each record corresponds to a problem the user has loaded
-    # in the original course
-    for record in StudentModule.objects.filter(**{'student_id': user.id, 'course_id': current_course, 'module_type': 'problem'}):
+    # Each record corresponds to a problem the user has loaded in the original course
+    problem_filter = {'student_id': user.id, 'course_id': current_course, 'module_type': 'problem'}
+    for record in StudentModule.objects.filter(**problem_filter):
         # record.module_state_key takes the form: 
         # block-v1:{course_id}+type@problem+block@{problem_id}
         problem_id = str(record.module_state_key).split("@")[-1]
@@ -104,7 +119,8 @@ def get_vertical(current_course):
 
     # Each record corresponds to a problem the user has loaded
     # in the original course
-    for record in StudentModule.objects.filter(**{'student_id': user.id, 'course_id': current_course, 'module_type': 'problem'}):
+    problem_filter = {'student_id': user.id, 'course_id': current_course, 'module_type': 'problem'}
+    for record in StudentModule.objects.filter(**problem_filter):
         # record.module_state_key takes the form:
         # block-v1:{course_id}+type@problem+block@{problem_id}
         problem_id = str(record.module_state_key).split("@")[-1]
@@ -124,7 +140,7 @@ def get_vertical(current_course):
         vertical_id = str(parent).split("@")[-1]
 
         vertical_data.add(vertical_id)
-    if len(vertical_data) < 1:
+    if not vertical_data:
         return []
 
     vertical_to_show = random.sample(vertical_data, 1)[0]
@@ -163,7 +179,7 @@ def delete_state_of_review_problem(user, current_course, problem_id):
 
 def get_correctness_and_attempts(state):
     '''
-    From the state of a problem from the Coursware Student Module,
+    From the state of a problem from the Courseware Student Module,
     determine if the learner correctly answered it initially and
     the number of attempts they had for the original problem
     
@@ -171,14 +187,13 @@ def get_correctness_and_attempts(state):
         state (dict): The state of a problem
 
     Returns a tuple of (correctness, attempts)
-        correctness (str): 'correct' or 'incorrect'
+        correctness (Bool): True if correct, else False
         attempts (int): 0 if never attempted, else number of times attempted
-    Catches KeyError if learner never attempted the problem
     '''
     if state['score']['raw_earned'] == state['score']['raw_possible']:
-        correctness = 'correct'
+        correctness = True
     else:
-        correctness = 'incorrect'
+        correctness = False
 
     if 'attempts' in state:
         attempts = state['attempts']
@@ -193,20 +208,22 @@ def is_correct_review_problem(user, current_course, problem_id):
     answered it.
 
     Returns True if the review problem was correctly answered, False otherwise
-    Catches IndexError if learner has never seen the review problem before.
-    Catches KeyError if learner has never attempted the review problem before.
     '''
     try:
-        review_record = StudentModule.objects.filter(**{'student_id': user.id,
-            'module_state_key': UsageKey.from_string(
-                'block-v1:'+REVIEW_COURSE_MAPPING[str(current_course)]+
-                '+type@problem+block@'+problem_id)})[0]
+        review_problem_usage_key = UsageKey.from_string(
+            'block-v1:'+REVIEW_COURSE_MAPPING[str(current_course)]+
+            '+type@problem+block@'+problem_id)
+        review_problem_filter = {'student_id': user.id, 'module_state_key': review_problem_usage_key}
+        review_record = StudentModule.objects.filter(**review_problem_filter)[0]
         review_record_state = json.loads(review_record.state)
-        for key in review_record_state["correct_map"].keys():
+        for key in review_record_state["correct_map"]:
             # If any part of a problem was incorrect,
             # it is eligible to be shown again
             if review_record_state["correct_map"][key]["correctness"] != 'correct':
                 return False
         return True
+
+    # Catches IndexError if learner has never seen the review problem before.
+    # Catches KeyError if learner has never attempted the review problem before.
     except (IndexError, KeyError):
         return False

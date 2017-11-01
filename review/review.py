@@ -1,20 +1,23 @@
-"""TO-DO: Write a description of what this XBlock is."""
+""" Review XBlock """
 
 import pkg_resources
 from xblock.core import XBlock
 from xblock.fields import Integer, String, Scope
 from xblock.fragment import Fragment
+from xblockutils.resources import ResourceLoader
 
 from get_review_ids import get_problems, get_vertical
 
 import logging
 
 log = logging.getLogger(__name__)
+loader = ResourceLoader(__name__)
 
 # Make '_' a no-op so we can scrape strings. Using lambda instead of
 #  `django.utils.translation.ugettext_noop` because Django cannot be imported in this file
 _ = lambda text: text
 
+# Eventually, this should be part of the xBlock fields as a Boolean
 SHOW_PROBLEMS = set([
     # This is here for testing purposes. Do not remove
     'DillonX/DAD101x/3T2017',
@@ -24,14 +27,13 @@ SHOW_PROBLEMS = set([
 SHOW_VERTICAL = set([
 ])
 
+@XBlock.needs('i18n')
 class ReviewXBlock(XBlock):
     """
-    TO-DO: document what your XBlock does.
+    The Review XBlock helps learners review concepts from a course by redisplaying
+    a handful of problems from the course with a fresh state that are ungraded and
+    have unlimited attempts.
     """
-
-    # Fields are defined on the class.  You can access them in your code as
-    # self.<fieldname>.
-
     display_name = String(
         display_name=_("Display Name"),
         help=_("The display name for this component."),
@@ -44,7 +46,7 @@ class ReviewXBlock(XBlock):
         help=_("Defines the number of problems the review module will display "
                "to the learner."),
         default=5,
-        scope=Scope.user_state_summary
+        scope=Scope.content
     )
 
     def resource_string(self, path):
@@ -52,42 +54,63 @@ class ReviewXBlock(XBlock):
         data = pkg_resources.resource_string(__name__, path)
         return data.decode("utf8")
 
-    def get_html(self):
-        html = self.resource_string("static/html/no_review.html")
-        if str(self.course_id) in SHOW_PROBLEMS:
-            # url_list elements have the form (url, correctness, attempts)
-            url_list = get_problems(self.num_desired, self.course_id)
-            if len(url_list) == self.num_desired:
-                html = self.resource_string("static/html/review.html")
-                # Want to wrap all of the problems inside of a div
-                html += '<div>\n'
-                html = html.format(NUMBER_DESIRED=self.num_desired)
-                for i in xrange(self.num_desired):
-                    content = self.resource_string("static/html/review_content_problem.html")
-                    content = content.format(PROBLEM_URL=url_list[i][0], INDEX=(i+1),
-                                             CORRECTNESS=url_list[i][1], NUM_ATTEMPTS=url_list[i][2])
-                    html += content
-                html += '</div>'
+    def get_problem_html(self):
+        """
+        Create the html for showing review problems by picking individual
+        problems. This calls the get_problems function which will return
+        self.num_desired urls to display in iFrames for the Review XBlock.
+        """
+        # url_list elements have the form (url, correctness, attempts)
+        url_list = get_problems(self.num_desired, self.course_id)
+        if len(url_list) == self.num_desired:
+            review_context_dict = {'number_desired':self.num_desired}
+            template = loader.render_django_template("/templates/review.html", review_context_dict)
+            # Want to wrap all of the problems inside of a div
+            template += '<div>\n'
 
-        elif str(self.course_id) in SHOW_VERTICAL:
-            vertical_url = get_vertical(self.course_id)
-            if vertical_url:
-                html = self.resource_string("static/html/review.html")
-                # Want to wrap all of the problems inside of a div
-                html += '<div>\n'
-                html = html.format(NUMBER_DESIRED='some')
-                content = self.resource_string("static/html/review_content_vertical.html")
-                content = content.format(VERTICAL_URL=vertical_url)
-                html += content
-                html += '</div>'
-        return html
+            for i in xrange(self.num_desired):
+                problem_url, correctness, num_attempts = url_list[i]
+                prob_context_dict = {
+                    'problem_url': problem_url,
+                    'correctness': correctness,
+                    'num_attempts': num_attempts,
+                    'index': (i+1)
+                }
+                template += loader.render_django_template("/templates/review_content_problem.html", prob_context_dict)
+            template += '</div>'
+            return template
+
+    def get_vertical_html(self):
+        """
+        Create the html for showing review problems by picking a single unit
+        to show to a learner (which will contain 1 or more problems). This
+        calls the get_vertical function which will return a single url to
+        display in an iFrame for the Review XBlock.
+        """
+        vertical_url = get_vertical(self.course_id)
+        if vertical_url:
+            review_context_dict = {'number_desired':'some'}
+            template = loader.render_django_template("/templates/review.html", review_context_dict)
+            # Want to wrap all of the problems inside of a div
+            template += '<div>\n'
+            vert_context_dict = {'vertical_url': vertical_url}
+            template += loader.render_django_template("static/html/review_content_vertical.html", vert_context_dict)
+            template += '</div>'
+            return html
 
     def student_view(self, context=None):
         """
         The primary view of the ReviewXBlock, shown to students
         when viewing courses.
         """
-        html = self.get_html()
+        html = None
+        if str(self.course_id) in SHOW_PROBLEMS:
+            html = self.get_problem_html()
+        elif str(self.course_id) in SHOW_VERTICAL:
+            html = self.get_vertical_html()
+        if not html:
+            # Default html if no problems or vertical are shown
+            html = loader.render_django_template("/templates/no_review.html")
         frag = Fragment(html)
         frag.add_css(self.resource_string("static/css/review.css"))
         frag.add_javascript(self.resource_string("static/js/src/review.js"))

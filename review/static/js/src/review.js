@@ -11,12 +11,12 @@ function ReviewXBlock(runtime, element) {
           skipLink;
 
       if (!$btn.hasClass('disable-click')) {
-        // Prevents double clicking which caused issues from seeing the problems
+        // There was an issue where the buttons containing the review content
+        // could have multiple click listeners on it causing it to remain closed when
+        // it was clicked on since the first listener would open it and the
+        // subsequent listener would immediately close it. This disables clicking
+        // for a short time so the second click can't happen
         $btn.addClass('disable-click');
-
-        setTimeout(function() {
-          $btn.removeClass('disable-click');
-        }, 100);
 
         // iFrame loads after the button is clicked so there is not
         // a large amount of loading upon going to the xBlock
@@ -56,6 +56,8 @@ function ReviewXBlock(runtime, element) {
 
         // Toggle active state (show/hide)
         $content.toggleClass('review-content--active');
+
+        $btn.removeClass('disable-click');
       }
     });
   });
