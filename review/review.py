@@ -9,7 +9,7 @@ from xblockutils.resources import ResourceLoader
 from django.template.loader import get_template
 
 from get_review_ids import get_problems, get_vertical
-import review.configuration
+from configuration import SHOW_PROBLEMS, SHOW_VERTICAL
 
 import logging
 
