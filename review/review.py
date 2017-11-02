@@ -88,9 +88,9 @@ class ReviewXBlock(XBlock):
             # Want to wrap all of the problems inside of a div
             template += '<div>\n'
             vert_context_dict = {'vertical_url': vertical_url}
-            template += loader.render_django_template("static/html/review_content_vertical.html", vert_context_dict)
+            template += loader.render_django_template("/templates/review_content_vertical.html", vert_context_dict)
             template += '</div>'
-            return html
+            return template
 
     def student_view(self, context=None):
         """
@@ -108,14 +108,17 @@ class ReviewXBlock(XBlock):
         frag = Fragment(html)
         frag.add_css(self.resource_string("static/css/review.css"))
         frag.add_javascript(self.resource_string("static/js/src/review.js"))
-        frag.initialize_js('ReviewXBlock')
+        if 'studio_view' in context:
+            log.critical("HEY")
+            frag.initialize_js('ReviewXBlock', context['studio_view'])
+        else:
+            log.critical("HIYA")
+            frag.initialize_js('ReviewXBlock')
         return frag
 
     def studio_view(self, context):
+        if context:
+            context['studio_view'] = True
+        else:
+            context = {'studio_view': True}
         return self.student_view(context)
-
-    @property
-    def non_editable_metadata_fields(self):
-        """
-        """
-        return
