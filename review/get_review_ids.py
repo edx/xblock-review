@@ -21,7 +21,7 @@ import crum
 import random
 import json
 
-from configuration import REVIEW_COURSE_MAPPING, ENROLLMENT_COURSE_MAPPING, TEMPLATE_URL
+import review.configuration
 
 log = logging.getLogger(__name__)
 
