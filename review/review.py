@@ -7,6 +7,7 @@ from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 
 from get_review_ids import get_problems, get_vertical
+from configuration import SHOW_PROBLEMS, SHOW_VERTICAL
 
 import logging
 
@@ -17,15 +18,6 @@ loader = ResourceLoader(__name__)
 #  `django.utils.translation.ugettext_noop` because Django cannot be imported in this file
 _ = lambda text: text
 
-# Eventually, this should be part of the xBlock fields as a Boolean
-SHOW_PROBLEMS = set([
-    # This is here for testing purposes. Do not remove
-    'DillonX/DAD101x/3T2017',
-    # Anant's course
-    'course-v1:MITx+6.002.3x+2T2016',
-])
-SHOW_VERTICAL = set([
-])
 
 @XBlock.needs('i18n')
 class ReviewXBlock(XBlock):

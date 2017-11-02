@@ -21,30 +21,11 @@ import crum
 import random
 import json
 
+from configuration import REVIEW_COURSE_MAPPING, ENROLLMENT_COURSE_MAPPING, TEMPLATE_URL
+
 log = logging.getLogger(__name__)
 
 # TODO: Switch to using CourseLocators and/or CourseKeys everywhere
-
-'''
-The mappings here are necessary to grab the review content from a review
-version of the course (a copy where problems are not graded and have
-unlimited attempts).
-When accessed, the key is the course the learner is currently interacting
-with and the value is the corresponding review course.
-'''
-REVIEW_COURSE_MAPPING = {
-    # Course used for testing. DO NOT REMOVE
-    'DillonX/DAD101x/3T2017': 'DillonX/DAD101rx/3T2017',
-    # Anant's course
-    'course-v1:MITx+6.002.3x+2T2016': 'MITx+6.002.3rx+2T2016',
-}
-ENROLLMENT_COURSE_MAPPING = {
-    # Course used for testing. DO NOT REMOVE
-    'DillonX/DAD101x/3T2017': 'DillonX/DAD101rx/3T2017',
-    # Anant's course
-    'course-v1:MITx+6.002.3x+2T2016': 'course-v1:MITx+6.002.3rx+2T2016',
-}
-TEMPLATE_URL = 'https://courses.edx.org/xblock/block-v1:{course_id}+type@{type}+block@{xblock_id}'
 
 
 def get_problems(num_desired, current_course):

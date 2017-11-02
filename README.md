@@ -6,3 +6,7 @@ This repository contains all of the code for the Review XBlock. The Review xBloc
 The code in this repository is licensed under version 3 of the AGPL unless otherwise noted.
 
 Please see LICENSE for details.
+#How to use
+TL;DR Don't use it yet.
+
+The Review XBlock is still in testing and should not be put into any course without explicit permission from edX. We always want to offer the best course experience for all of our learners and want to thoroughly test our xBlocks before releasing it to everyone.
