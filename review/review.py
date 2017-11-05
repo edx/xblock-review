@@ -108,17 +108,8 @@ class ReviewXBlock(XBlock):
         frag = Fragment(html)
         frag.add_css(self.resource_string("static/css/review.css"))
         frag.add_javascript(self.resource_string("static/js/src/review.js"))
-        if 'studio_view' in context:
-            log.critical("HEY")
-            frag.initialize_js('ReviewXBlock', context['studio_view'])
-        else:
-            log.critical("HIYA")
-            frag.initialize_js('ReviewXBlock')
+        frag.initialize_js('ReviewXBlock')
         return frag
 
     def studio_view(self, context):
-        if context:
-            context['studio_view'] = True
-        else:
-            context = {'studio_view': True}
         return self.student_view(context)
