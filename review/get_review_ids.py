@@ -18,8 +18,10 @@ from enrollment.api import get_enrollment, add_enrollment, update_enrollment
 from lms.djangoapps.course_blocks.api import get_course_blocks
 from xmodule.modulestore.django import modulestore
 import crum
-import random
+from datetime import datetime
 import json
+import random
+import pytz
 
 from configuration import REVIEW_COURSE_MAPPING, ENROLLMENT_COURSE_MAPPING, TEMPLATE_URL
 
@@ -38,33 +40,20 @@ def get_problems(num_desired, current_course):
         num_desired (int): the number of desired problems to show the learner
         current_course (CourseLocator): The course the learner is currently in
 
-    Returns a list of num_desired tuples in the form (URL to display, correctness, attempts)
+    Returns a list of num_desired tuples in the form (URL to display, correct, attempts)
     '''
     user = crum.get_current_user()
 
     enroll_user(user, current_course)
+    store = modulestore()
     
     problem_data = []
-    # Each record corresponds to a problem the user has loaded in the original course
-    problem_filter = {'student_id': user.id, 'course_id': current_course, 'module_type': 'problem'}
-    for record in StudentModule.objects.filter(**problem_filter):
-        # record.module_state_key takes the form: 
-        # block-v1:{course_id}+type@problem+block@{problem_id}
-        problem_id = str(record.module_state_key).split("@")[-1]
 
-        # Actual logic regarding the record should go here
-        state = json.loads(record.state)
-
-        # The key 'selected' shows up if a problem comes from a
-        # library content module. These cause issues so we skip this.
-        # Issue: Library content contains problems but the CSM brings up
-        # the library content and not the problems within
-        if 'selected' in state:
-            continue
-
-        correctness, attempts = get_correctness_and_attempts(state)
-
-        problem_data.append((problem_id, correctness, attempts))
+    for block_key, state in get_records(user, current_course):
+        if is_valid_problem(store, block_key, state):
+            correct, attempts = get_correctness_and_attempts(state)
+            problem_id = block_key.block_id
+            problem_data.append((problem_id, correct, attempts))
 
     if len(problem_data) < num_desired:
         return []
@@ -72,9 +61,9 @@ def get_problems(num_desired, current_course):
     problems_to_show = random.sample(problem_data, num_desired)
     review_course_id = REVIEW_COURSE_MAPPING[str(current_course)]
     urls = []
-    for problem, correctness, attempts in problems_to_show:
+    for problem, correct, attempts in problems_to_show:
         urls.append((TEMPLATE_URL.format(course_id=review_course_id,
-                    type='problem', xblock_id=problem), correctness, attempts))
+                    type='problem', xblock_id=problem), correct, attempts))
     return urls
 
 def get_vertical(current_course):
@@ -98,29 +87,12 @@ def get_vertical(current_course):
 
     vertical_data = set()
 
-    # Each record corresponds to a problem the user has loaded
-    # in the original course
-    problem_filter = {'student_id': user.id, 'course_id': current_course, 'module_type': 'problem'}
-    for record in StudentModule.objects.filter(**problem_filter):
-        # record.module_state_key takes the form:
-        # block-v1:{course_id}+type@problem+block@{problem_id}
-        problem_id = str(record.module_state_key).split("@")[-1]
+    for block_key, state in get_records(user, current_course):
+        if is_valid_problem(store, block_key, state):
+            parent = course_blocks.get_parents(block_key)[0]
+            vertical_id = parent.block_id
+            vertical_data.add(vertical_id)
 
-        # Actual logic regarding the record should go here
-        state = json.loads(record.state)
-
-        # The key 'selected' shows up if a problem comes from a
-        # library content module. These cause issues so we skip this.
-        # Issue: Library content contains problems but the CSM brings up
-        # the library content and not the problems within
-        if 'selected' in state:
-            continue
-
-        # parent takes the form: block-v1:{course_id}+type@vertical+block@{vertical_id}
-        parent = course_blocks.get_parents(record.module_state_key)[0]
-        vertical_id = str(parent).split("@")[-1]
-
-        vertical_data.add(vertical_id)
     if not vertical_data:
         return []
 
@@ -128,6 +100,31 @@ def get_vertical(current_course):
     review_course_id = REVIEW_COURSE_MAPPING[str(current_course)]
     return (TEMPLATE_URL.format(course_id=review_course_id,
                     type='vertical', xblock_id=vertical_to_show))
+
+def get_records(user, current_course):
+    '''
+    Generator that yields each applicable record from the Courseware Student
+    Module. Each record corresponds to a problem the user has loaded
+    in the original course.
+
+    Parameters:
+        user (django.contrib.auth.models.User): User object for the current user
+        current_course (CourseLocator): The course the learner is currently in
+
+    Returns:
+        record.module_state_key (opaque_keys.edx.locator.BlockUsageLocator):
+            The locator for the problem
+        state (dict): The state of the problem
+    '''
+    problem_filter = {'student_id': user.id, 'course_id': current_course, 'module_type': 'problem'}
+    for record in StudentModule.objects.filter(**problem_filter):
+        state = json.loads(record.state)
+        # The key 'selected' shows up if a problem comes from a
+        # library content module. These cause issues so we skip this.
+        # Issue: Library content contains problems but the CSM brings up
+        # the library content and not the problems within
+        if 'selected' not in state:
+            yield record.module_state_key, state
 
 def enroll_user(user, current_course):
     '''
@@ -167,44 +164,55 @@ def get_correctness_and_attempts(state):
     Parameter:
         state (dict): The state of a problem
 
-    Returns a tuple of (correctness, attempts)
-        correctness (Bool): True if correct, else False
+    Returns a tuple of (correct, attempts)
+        correct (Bool): True if correct, else False
         attempts (int): 0 if never attempted, else number of times attempted
     '''
     if state['score']['raw_earned'] == state['score']['raw_possible']:
-        correctness = True
+        correct = True
     else:
-        correctness = False
+        correct = False
 
     if 'attempts' in state:
         attempts = state['attempts']
     else:
         attempts = 0
 
-    return (correctness, attempts)
+    return (correct, attempts)
 
-def is_correct_review_problem(user, current_course, problem_id):
+def is_valid_problem(store, block_key, state):
     '''
-    Checks a review problem to see if the learner has already correctly
-    answered it.
+    Checks a problem to see if it is valid to show to the learner. The
+    reason to have this is so learners don't try to cheat by using the
+    review problems to find out the correct answer and then using it to
+    answer the actual problem.
+    Conditions to be valid:
+        1) Ungraded (it's ungraded originally so showing it again is okay)
+        2) Correctly answered (the learner has already correctly answered
+            the problem so it should be fine to show them again.)
+        3) All attempts have been used. (If all attempts on the actual problem
+            have been used, then it's safe to show them)
+        4) It is past the due date
 
-    Returns True if the review problem was correctly answered, False otherwise
+    Parameters:
+        store (lms.djangoapps.ccx.modulestore.CCXModulestoreWrapper): Modulestore
+            for grabbing the instance of a problem from the locator key
+        block_key (opaque_keys.edx.locator.BlockUsageLocator): The locator for the problem
+        state (dict): The state of the problem
+
+    Returns True if the problem is valid, False otherwise
     '''
-    try:
-        review_problem_usage_key = UsageKey.from_string(
-            'block-v1:'+REVIEW_COURSE_MAPPING[str(current_course)]+
-            '+type@problem+block@'+problem_id)
-        review_problem_filter = {'student_id': user.id, 'module_state_key': review_problem_usage_key}
-        review_record = StudentModule.objects.filter(**review_problem_filter)[0]
-        review_record_state = json.loads(review_record.state)
-        for key in review_record_state["correct_map"]:
-            # If any part of a problem was incorrect,
-            # it is eligible to be shown again
-            if review_record_state["correct_map"][key]["correctness"] != 'correct':
-                return False
+    problem = store.get_item(block_key)
+    if not problem.graded:
         return True
-
-    # Catches IndexError if learner has never seen the review problem before.
-    # Catches KeyError if learner has never attempted the review problem before.
-    except (IndexError, KeyError):
-        return False
+    if state['score']['raw_earned'] == state['score']['raw_possible']:
+        return True
+    if 'attempts' in state:
+        if state['attempts'] == problem.max_attempts:
+            return True
+    if problem.due is not None:
+        now = datetime.utcnow()
+        now = now.replace(tzinfo=pytz.utc)
+        if now > problem.due:
+            return True
+    return False

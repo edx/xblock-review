@@ -86,9 +86,9 @@ class ReviewXBlock(XBlock):
             # Want to wrap all of the problems inside of a div
             template += '<div>\n'
             vert_context_dict = {'vertical_url': vertical_url}
-            template += loader.render_django_template("static/html/review_content_vertical.html", vert_context_dict)
+            template += loader.render_django_template("/templates/review_content_vertical.html", vert_context_dict)
             template += '</div>'
-            return html
+            return template
 
     def student_view(self, context=None):
         """
@@ -111,9 +111,3 @@ class ReviewXBlock(XBlock):
 
     def studio_view(self, context):
         return self.student_view(context)
-
-    @property
-    def non_editable_metadata_fields(self):
-        """
-        """
-        return
