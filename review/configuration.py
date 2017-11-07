@@ -27,18 +27,18 @@ REVIEW_COURSE_MAPPING = {
     # Course used for testing. DO NOT REMOVE
     'DillonX/DAD101x/3T2017': 'DillonX/DAD101rx/3T2017',
 
-    'course-v1:MITx+6.002.3x+2T2016': 'MITx+6.002.3rx+2T2016',
-    'course-v1:MITx+2.01x+3T2017': 'MITx+2.01rx+3T2017',
-    'course-v1:MITx+18.01.2x+3T2017': 'MITx+18.01.2rx+3T2017',
-    'course-v1:MITx+8.01.2x+3T2017': 'MITx+8.01.2rx+3T2017',
+    'course-v1:MITx+6.002.3x+2T2016': 'MITx+6.002.3xr+2T2016',
+    'course-v1:MITx+2.01x+3T2017': 'MITx+2.01xr+3T2017',
+    'course-v1:MITx+18.01.2x+3T2017': 'MITx+18.01.2xr+3T2017',
+    'course-v1:MITx+8.01.2x+3T2017': 'MITx+8.01.2xr+3T2017',
 }
 ENROLLMENT_COURSE_MAPPING = {
     # Course used for testing. DO NOT REMOVE
     'DillonX/DAD101x/3T2017': 'DillonX/DAD101rx/3T2017',
 
-    'course-v1:MITx+6.002.3x+2T2016': 'course-v1:MITx+6.002.3rx+2T2016',
-    'course-v1:MITx+2.01x+3T2017': 'course-v1:MITx+2.01rx+3T2017',
-    'course-v1:MITx+18.01.2x+3T2017': 'course-v1:MITx+18.01.2rx+3T2017',
-    'course-v1:MITx+8.01.2x+3T2017': 'course-v1:MITx+8.01.2rx+3T2017',
+    'course-v1:MITx+6.002.3x+2T2016': 'course-v1:MITx+6.002.3xr+2T2016',
+    'course-v1:MITx+2.01x+3T2017': 'course-v1:MITx+2.01xr+3T2017',
+    'course-v1:MITx+18.01.2x+3T2017': 'course-v1:MITx+18.01.2xr+3T2017',
+    'course-v1:MITx+8.01.2x+3T2017': 'course-v1:MITx+8.01.2xr+3T2017',
 }
 TEMPLATE_URL = 'https://dillon-demo.sandbox.edx.org/xblock/block-v1:{course_id}+type@{type}+block@{xblock_id}'

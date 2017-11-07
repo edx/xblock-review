@@ -18,6 +18,7 @@ import random
 from courseware.models import StudentModule
 from enrollment.api import get_enrollment, add_enrollment, update_enrollment
 from lms.djangoapps.course_blocks.api import get_course_blocks
+from lms.djangoapps.instructor.enrollment import reset_student_attempts
 from xmodule.modulestore.django import modulestore
 import crum
 import pytz
@@ -50,6 +51,7 @@ def get_problems(num_desired, current_course):
 
     for block_key, state in get_records(user, current_course):
         if is_valid_problem(store, block_key, state):
+            delete_state_of_review_problem(user, current_course, block_key.block_id)
             correct, attempts = get_correctness_and_attempts(state)
             problem_id = block_key.block_id
             problem_data.append((problem_id, correct, attempts))
@@ -154,9 +156,17 @@ def delete_state_of_review_problem(user, current_course, problem_id):  # pylint:
     Parameters:
         user (User): the current user interacting with the review xBlock
         current_course (CourseLocator): The course the learner is currently in
-        problem_id (str?): The problem id whose state should be cleared
+        problem_id (str): The problem id whose state should be cleared
     '''
-    pass
+    review_course = current_course.replace(course=current_course.course+'r')
+    review_key = review_course.make_usage_key('problem', problem_id)
+    try:
+        reset_student_attempts(review_course, user, review_key, user, True)
+    # The record will not exist in the StudentModule if the learner has not
+    # seen it as a review problem yet so we just want to skip since there
+    # is no state to delete
+    except StudentModule.DoesNotExist:
+        pass
 
 
 def get_correctness_and_attempts(state):
