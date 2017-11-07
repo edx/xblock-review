@@ -1,3 +1,4 @@
+# pylint: disable=import-error
 '''
 The logic for actually grabbing review content is contained here for the
 Review xBlock. This works by having a copy of the actual course a learner
@@ -11,19 +12,17 @@ grades. There are two ways review content can be grabbed:
 
 import logging
 
+from datetime import datetime
+import json
+import random
 from courseware.models import StudentModule
-from opaque_keys.edx.locator import CourseLocator
-from opaque_keys.edx.keys import UsageKey
 from enrollment.api import get_enrollment, add_enrollment, update_enrollment
 from lms.djangoapps.course_blocks.api import get_course_blocks
 from xmodule.modulestore.django import modulestore
 import crum
-from datetime import datetime
-import json
-import random
 import pytz
 
-from configuration import REVIEW_COURSE_MAPPING, ENROLLMENT_COURSE_MAPPING, TEMPLATE_URL
+from .configuration import REVIEW_COURSE_MAPPING, ENROLLMENT_COURSE_MAPPING, TEMPLATE_URL
 
 log = logging.getLogger(__name__)
 
@@ -46,7 +45,7 @@ def get_problems(num_desired, current_course):
 
     enroll_user(user, current_course)
     store = modulestore()
-    
+
     problem_data = []
 
     for block_key, state in get_records(user, current_course):
@@ -65,6 +64,7 @@ def get_problems(num_desired, current_course):
         urls.append((TEMPLATE_URL.format(course_id=review_course_id,
                     type='problem', xblock_id=problem), correct, attempts))
     return urls
+
 
 def get_vertical(current_course):
     '''
@@ -99,7 +99,8 @@ def get_vertical(current_course):
     vertical_to_show = random.sample(vertical_data, 1)[0]
     review_course_id = REVIEW_COURSE_MAPPING[str(current_course)]
     return (TEMPLATE_URL.format(course_id=review_course_id,
-                    type='vertical', xblock_id=vertical_to_show))
+                                type='vertical', xblock_id=vertical_to_show))
+
 
 def get_records(user, current_course):
     '''
@@ -126,6 +127,7 @@ def get_records(user, current_course):
         if 'selected' not in state:
             yield record.module_state_key, state
 
+
 def enroll_user(user, current_course):
     '''
     If the user is not enrolled in the review version of the course,
@@ -143,7 +145,8 @@ def enroll_user(user, current_course):
     elif not enrollment_status['is_active']:
         update_enrollment(user.username, enrollment_course_id, is_active=True)
 
-def delete_state_of_review_problem(user, current_course, problem_id):
+
+def delete_state_of_review_problem(user, current_course, problem_id):  # pylint: disable=unused-argument
     '''
     Deletes the state of a review problem so it can be used infinitely
     many times.
@@ -155,12 +158,13 @@ def delete_state_of_review_problem(user, current_course, problem_id):
     '''
     pass
 
+
 def get_correctness_and_attempts(state):
     '''
     From the state of a problem from the Courseware Student Module,
     determine if the learner correctly answered it initially and
     the number of attempts they had for the original problem
-    
+
     Parameter:
         state (dict): The state of a problem
 
@@ -168,10 +172,7 @@ def get_correctness_and_attempts(state):
         correct (Bool): True if correct, else False
         attempts (int): 0 if never attempted, else number of times attempted
     '''
-    if state['score']['raw_earned'] == state['score']['raw_possible']:
-        correct = True
-    else:
-        correct = False
+    correct = (state['score']['raw_earned'] == state['score']['raw_possible'])
 
     if 'attempts' in state:
         attempts = state['attempts']
@@ -179,6 +180,7 @@ def get_correctness_and_attempts(state):
         attempts = 0
 
     return (correct, attempts)
+
 
 def is_valid_problem(store, block_key, state):
     '''

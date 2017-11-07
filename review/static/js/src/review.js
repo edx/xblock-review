@@ -1,5 +1,5 @@
 /* Javascript for ReviewXBlock. */
-function ReviewXBlock(runtime, element, studio_view=false) {
+function ReviewXBlock(runtime, element) {
   $(function ($) {
     'use strict'
 
@@ -12,7 +12,7 @@ function ReviewXBlock(runtime, element, studio_view=false) {
           parser;
 
       if (!$btn.hasClass('disable-click')) {
-        /* 
+        /*
         There is an issue where the buttons containing the review content
         could have multiple listeners on it causing it to remain closed when
         it was clicked on since the first listener would open it and the
