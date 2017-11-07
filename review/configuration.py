@@ -1,4 +1,8 @@
-####### Needed for review.py #######
+'''
+Constants are stored here for use in other parts of the xBlock.
+'''
+
+# Needed for review.py #
 # Eventually, this should be part of the xBlock fields as a Boolean
 SHOW_PROBLEMS = set([
     # This is here for testing purposes. Do not remove
@@ -9,7 +13,7 @@ SHOW_PROBLEMS = set([
 SHOW_VERTICAL = set([
 ])
 
-####### Needed for get_review_ids.py #######
+# Needed for get_review_ids.py #
 '''
 The mappings here are necessary to grab the review content from a review
 version of the course (a copy where problems are not graded and have
