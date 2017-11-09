@@ -18,6 +18,7 @@ import random
 from courseware.models import StudentModule
 from enrollment.api import get_enrollment, add_enrollment, update_enrollment
 from lms.djangoapps.course_blocks.api import get_course_blocks
+from lms.djangoapps.instructor.enrollment import reset_student_attempts
 from xmodule.modulestore.django import modulestore
 import crum
 import pytz
@@ -53,6 +54,7 @@ def get_problems(num_desired, current_course):
             correct, attempts = get_correctness_and_attempts(state)
             problem_id = block_key.block_id
             problem_data.append((problem_id, correct, attempts))
+            delete_state_of_review_problem(user, current_course, problem_id)
 
     if len(problem_data) < num_desired:
         return []
@@ -92,6 +94,7 @@ def get_vertical(current_course):
             parent = course_blocks.get_parents(block_key)[0]
             vertical_id = parent.block_id
             vertical_data.add(vertical_id)
+            delete_state_of_review_problem(user, current_course, block_key.block_id)
 
     if not vertical_data:
         return []
@@ -144,6 +147,27 @@ def enroll_user(user, current_course):
         add_enrollment(user.username, enrollment_course_id)
     elif not enrollment_status['is_active']:
         update_enrollment(user.username, enrollment_course_id, is_active=True)
+
+
+def delete_state_of_review_problem(user, current_course, problem_id):
+    '''
+    Deletes the state of a review problem so it can be used infinitely
+    many times.
+
+    Parameters:
+        user (User): the current user interacting with the review xBlock
+        current_course (CourseLocator): The course the learner is currently in
+        problem_id (str): The problem id whose state should be cleared
+    '''
+    review_course = current_course.replace(course=current_course.course+'r')
+    review_key = review_course.make_usage_key('problem', problem_id)
+    try:
+        reset_student_attempts(review_course, user, review_key, user, True)
+    # The record will not exist in the StudentModule if the learner has not
+    # seen it as a review problem yet so we just want to skip since there
+    # is no state to delete
+    except StudentModule.DoesNotExist:
+        pass
 
 
 def get_correctness_and_attempts(state):
