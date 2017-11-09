@@ -20,8 +20,7 @@ def package_data(pkg, roots):
 
     return {pkg: data}
 
-with open('README.md') as readme:
-    long_description = readme.read()
+long_description = open(os.path.join(os.path.dirname(__file__), 'README.rst')).read()
 
 setup(
     name='xblock-review',

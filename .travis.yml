@@ -1,10 +1,16 @@
 language: python
 
+matrix:
+  include:
+  - python: 2.7
+    env: TOXENV=quality
+
 install:
   make requirements
 
 script:
-  make test
+  - make test
+  - make quality
 
 deploy:
   provider: pypi

@@ -23,7 +23,7 @@ with and the value is the corresponding review course.
 '''
 REVIEW_COURSE_MAPPING = {
     # Course used for testing. DO NOT REMOVE
-    'DillonX/DAD101x/3T2017': 'DillonX/DAD101rx/3T2017',
+    'DillonX/DAD101x/3T2017': 'DillonX/DAD101xr/3T2017',
     # Anant's course
     'course-v1:MITx+6.002.3x+2T2016': 'MITx+6.002.3xr+2T2016',
 }
