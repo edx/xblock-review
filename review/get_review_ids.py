@@ -16,14 +16,17 @@ from datetime import datetime
 import json
 import random
 from courseware.models import StudentModule
+from django.conf import settings
 from enrollment.api import get_enrollment, add_enrollment, update_enrollment
-from lms.djangoapps.course_blocks.api import get_course_blocks
-from lms.djangoapps.instructor.enrollment import reset_student_attempts
 from xmodule.modulestore.django import modulestore
 import crum
 import pytz
 
 from .configuration import REVIEW_COURSE_MAPPING, ENROLLMENT_COURSE_MAPPING, TEMPLATE_URL
+
+if 'lms.djangoapps.grades.apps.GradesConfig' in settings.INSTALLED_APPS:
+    from lms.djangoapps.course_blocks.api import get_course_blocks
+    from lms.djangoapps.instructor.enrollment import reset_student_attempts
 
 log = logging.getLogger(__name__)
 
