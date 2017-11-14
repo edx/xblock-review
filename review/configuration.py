@@ -1,9 +1,11 @@
+# pylint: disable=import-error
 '''
-Constants are stored here for use in other parts of the xBlock.
+Constants are stored here for use in other parts of the XBlock.
 '''
+from django.conf import settings
 
 # Needed for review.py #
-# Eventually, this should be part of the xBlock fields as a Boolean
+# Eventually, this should be part of the XBlock fields as a Boolean
 SHOW_PROBLEMS = set([
     'course-v1:MITx+6.002.3x+2T2016',
     'course-v1:MITx+18.01.2x+3T2017',
@@ -41,4 +43,4 @@ ENROLLMENT_COURSE_MAPPING = {
     'course-v1:MITx+18.01.2x+3T2017': 'course-v1:MITx+18.01.2x_review+3T2017',
     'course-v1:MITx+8.01.2x+3T2017': 'course-v1:MITx+8.01.2x_review+3T2017',
 }
-TEMPLATE_URL = 'https://dillon-demo.sandbox.edx.org/xblock/block-v1:{course_id}+type@{type}+block@{xblock_id}'
+TEMPLATE_URL = settings.LMS_ROOT_URL + '/xblock/block-v1:{course_id}+type@{type}+block@{xblock_id}'

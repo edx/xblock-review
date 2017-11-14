@@ -10,28 +10,19 @@ grades. There are two ways review content can be grabbed:
     On a unit basis (this would be single view that contains multiple problems)
 '''
 
-import logging
-
-from datetime import datetime
 import json
+import logging
 import random
-from courseware.models import StudentModule
-from django.conf import settings
-from enrollment.api import get_enrollment, add_enrollment, update_enrollment
-from xmodule.modulestore.django import modulestore
+from datetime import datetime
+
 import crum
 import pytz
+from courseware.models import StudentModule
+from enrollment.api import add_enrollment, get_enrollment, update_enrollment
+from lms.djangoapps.course_blocks.api import get_course_blocks
+from xmodule.modulestore.django import modulestore
 
-from .configuration import REVIEW_COURSE_MAPPING, ENROLLMENT_COURSE_MAPPING, TEMPLATE_URL
-
-# This check exists because if we import lms.djangoapps.instructor.enrollment
-# when it's not in the django INSTALLED_APPS, many python tests running in the
-# CMS environment fail since the tests then expect a model to exist, but it
-# doesn't because it is not in django's INSTALLED_APPS. By verifying we are in
-# the LMS through the check, we avoid these test failures.
-if 'lms.djangoapps.grades.apps.GradesConfig' in settings.INSTALLED_APPS:
-    from lms.djangoapps.course_blocks.api import get_course_blocks
-    from lms.djangoapps.instructor.enrollment import reset_student_attempts
+from .configuration import ENROLLMENT_COURSE_MAPPING, REVIEW_COURSE_MAPPING, TEMPLATE_URL
 
 log = logging.getLogger(__name__)
 
@@ -69,11 +60,11 @@ def get_problems(num_desired, current_course):
 
     problems_to_show = random.sample(problem_data, num_desired)
     review_course_id = REVIEW_COURSE_MAPPING[str(current_course)]
-    urls = []
+    problem_information = []
     for problem, correct, attempts in problems_to_show:
-        urls.append((TEMPLATE_URL.format(course_id=review_course_id,
-                    type='problem', xblock_id=problem), correct, attempts))
-    return urls
+        problem_information.append((TEMPLATE_URL.format(course_id=review_course_id,
+                                    type='problem', xblock_id=problem), correct, attempts))
+    return problem_information
 
 
 def get_vertical(current_course):
@@ -167,10 +158,15 @@ def delete_state_of_review_problem(user, current_course, problem_id):
         current_course (CourseLocator): The course the learner is currently in
         problem_id (str): The problem id whose state should be cleared
     '''
-    review_course = current_course.replace(course=current_course.course+'r')
+    review_course = current_course.replace(course=current_course.course+'_review')
     review_key = review_course.make_usage_key('problem', problem_id)
     try:
-        reset_student_attempts(review_course, user, review_key, user, True)
+        module_to_delete = StudentModule.objects.get(
+            student_id=user.id,
+            course_id=review_course,
+            module_state_key=review_key
+        )
+        module_to_delete.delete()
     except StudentModule.DoesNotExist:
         # The record will not exist in the StudentModule if the learner has not
         # seen it as a review problem yet so we just want to skip since there
@@ -216,7 +212,7 @@ def is_valid_problem(store, block_key, state):
         4) It is past the due date
 
     Parameters:
-        store (lms.djangoapps.ccx.modulestore.CCXModulestoreWrapper): Modulestore
+        store (xmodule.modulestore.mixed.MixedModuleStore): Modulestore
             for grabbing the instance of a problem from the locator key
         block_key (opaque_keys.edx.locator.BlockUsageLocator): The locator for the problem
         state (dict): The state of the problem

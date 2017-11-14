@@ -2,14 +2,16 @@
 ''' Review XBlock '''
 
 import logging
+
 import pkg_resources
+
 from xblock.core import XBlock
-from xblock.fields import Integer, String, Scope
+from xblock.fields import Integer, Scope, String
 from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 
-from .get_review_ids import get_problems, get_vertical
 from .configuration import SHOW_PROBLEMS, SHOW_VERTICAL
+from .get_review_ids import get_problems, get_vertical
 
 log = logging.getLogger(__name__)
 loader = ResourceLoader(__name__)
@@ -114,4 +116,8 @@ class ReviewXBlock(XBlock):
         return frag
 
     def studio_view(self, context):
+        '''
+        The view of the ReviewXBlock shown to course teams when they access
+        the XBlock in studio.
+        '''
         return self.student_view(context)
