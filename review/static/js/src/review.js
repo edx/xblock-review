@@ -28,7 +28,7 @@ function ReviewXBlock(runtime, element) {
         }, 100);
 
         // iFrame loads after the button is clicked so there is not
-        // a large amount of loading upon going to the xBlock
+        // a large amount of loading upon going to the XBlock
         if ($iframe.attr('src') === '') {
           $iframe.attr('src', $btn.data('iframe-src'));
         }
@@ -39,7 +39,7 @@ function ReviewXBlock(runtime, element) {
         parser = document.createElement('a');
         parser.setAttribute('id', 'iframe-hostname');
         parser.href = $btn.data('iframe-src');
-        if (parser.hostname == window.location.hostname) {
+        if (parser.hostname === window.location.hostname) {
           // Dynamically changes the height of the iFrame to the size of
           // the content inside. Sets the interval when the button is opened
           // and clears the interval when the button is closed

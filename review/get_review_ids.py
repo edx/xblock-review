@@ -1,7 +1,7 @@
 # pylint: disable=import-error
 '''
 The logic for actually grabbing review content is contained here for the
-Review xBlock. This works by having a copy of the actual course a learner
+Review XBlock. This works by having a copy of the actual course a learner
 is interacting with that is hidden from learners. This copied course hosts
 the content we will show as review so the review content displayed has a
 fresh state and can be set to ungraded so it doesn't affect the learners'
@@ -16,14 +16,22 @@ from datetime import datetime
 import json
 import random
 from courseware.models import StudentModule
+from django.conf import settings
 from enrollment.api import get_enrollment, add_enrollment, update_enrollment
-from lms.djangoapps.course_blocks.api import get_course_blocks
-from lms.djangoapps.instructor.enrollment import reset_student_attempts
 from xmodule.modulestore.django import modulestore
 import crum
 import pytz
 
 from .configuration import REVIEW_COURSE_MAPPING, ENROLLMENT_COURSE_MAPPING, TEMPLATE_URL
+
+# This check exists because if we import lms.djangoapps.instructor.enrollment
+# when it's not in the django INSTALLED_APPS, many python tests running in the
+# CMS environment fail since the tests then expect a model to exist, but it
+# doesn't because it is not in django's INSTALLED_APPS. By verifying we are in
+# the LMS through the check, we avoid these test failures.
+if 'lms.djangoapps.grades.apps.GradesConfig' in settings.INSTALLED_APPS:
+    from lms.djangoapps.course_blocks.api import get_course_blocks
+    from lms.djangoapps.instructor.enrollment import reset_student_attempts
 
 log = logging.getLogger(__name__)
 
@@ -44,17 +52,17 @@ def get_problems(num_desired, current_course):
     '''
     user = crum.get_current_user()
 
-    enroll_user(user, current_course)
+    enroll_user_in_review_course(user, current_course)
     store = modulestore()
 
     problem_data = []
 
     for block_key, state in get_records(user, current_course):
         if is_valid_problem(store, block_key, state):
-            delete_state_of_review_problem(user, current_course, block_key.block_id)
             correct, attempts = get_correctness_and_attempts(state)
             problem_id = block_key.block_id
             problem_data.append((problem_id, correct, attempts))
+            delete_state_of_review_problem(user, current_course, problem_id)
 
     if len(problem_data) < num_desired:
         return []
@@ -81,7 +89,7 @@ def get_vertical(current_course):
     '''
     user = crum.get_current_user()
 
-    enroll_user(user, current_course)
+    enroll_user_in_review_course(user, current_course)
 
     store = modulestore()
     course_usage_key = store.make_course_usage_key(current_course)
@@ -94,6 +102,7 @@ def get_vertical(current_course):
             parent = course_blocks.get_parents(block_key)[0]
             vertical_id = parent.block_id
             vertical_data.add(vertical_id)
+            delete_state_of_review_problem(user, current_course, block_key.block_id)
 
     if not vertical_data:
         return []
@@ -130,14 +139,14 @@ def get_records(user, current_course):
             yield record.module_state_key, state
 
 
-def enroll_user(user, current_course):
+def enroll_user_in_review_course(user, current_course):
     '''
     If the user is not enrolled in the review version of the course,
     they are unable to see any of the problems. This ensures they
     are enrolled so they can see review problems.
 
     Parameters:
-        user (User): the current user interacting with the review xBlock
+        user (User): the current user interacting with the review XBlock
         current_course (CourseLocator): The course the learner is currently in
     '''
     enrollment_course_id = ENROLLMENT_COURSE_MAPPING[str(current_course)]
@@ -148,13 +157,13 @@ def enroll_user(user, current_course):
         update_enrollment(user.username, enrollment_course_id, is_active=True)
 
 
-def delete_state_of_review_problem(user, current_course, problem_id):  # pylint: disable=unused-argument
+def delete_state_of_review_problem(user, current_course, problem_id):
     '''
     Deletes the state of a review problem so it can be used infinitely
     many times.
 
     Parameters:
-        user (User): the current user interacting with the review xBlock
+        user (User): the current user interacting with the review XBlock
         current_course (CourseLocator): The course the learner is currently in
         problem_id (str): The problem id whose state should be cleared
     '''
@@ -162,10 +171,10 @@ def delete_state_of_review_problem(user, current_course, problem_id):  # pylint:
     review_key = review_course.make_usage_key('problem', problem_id)
     try:
         reset_student_attempts(review_course, user, review_key, user, True)
-    # The record will not exist in the StudentModule if the learner has not
-    # seen it as a review problem yet so we just want to skip since there
-    # is no state to delete
     except StudentModule.DoesNotExist:
+        # The record will not exist in the StudentModule if the learner has not
+        # seen it as a review problem yet so we just want to skip since there
+        # is no state to delete
         pass
 
 
