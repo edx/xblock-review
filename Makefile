@@ -1,4 +1,5 @@
 .PHONY: requirements test quality
+
 requirements:
 	pip install -r requirements/travis.txt
 

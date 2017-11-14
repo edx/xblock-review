@@ -15,8 +15,8 @@ log = logging.getLogger(__name__)
 loader = ResourceLoader(__name__)
 
 
-# Make '_' a no-op so we can scrape strings. Using lambda instead of
-#  `django.utils.translation.ugettext_noop` because Django cannot be imported in this file
+# Make '_' a no-op so we can scrape strings. Using below function instead of
+# `django.utils.translation.ugettext_noop` because Django cannot be imported in this file
 def _(text):
     return text
 
@@ -68,11 +68,12 @@ class ReviewXBlock(XBlock):
                     'problem_url': problem_url,
                     'correctness': correctness,
                     'num_attempts': num_attempts,
-                    'index': (i+1)
+                    'index': i+1
                 }
                 template += loader.render_django_template('/templates/review_content_problem.html', prob_context_dict)
             template += '</div>'
             return template
+        return ''
 
     def get_vertical_html(self):
         '''
@@ -91,13 +92,14 @@ class ReviewXBlock(XBlock):
             template += loader.render_django_template('/templates/review_content_vertical.html', vert_context_dict)
             template += '</div>'
             return template
+        return ''
 
     def student_view(self, context=None):  # pylint: disable=unused-argument
         '''
         The primary view of the ReviewXBlock, shown to students
         when viewing courses.
         '''
-        html = None
+        html = ''
         if str(self.course_id) in SHOW_PROBLEMS:
             html = self.get_problem_html()
         elif str(self.course_id) in SHOW_VERTICAL:
