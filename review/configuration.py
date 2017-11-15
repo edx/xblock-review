@@ -1,6 +1,8 @@
+# pylint: disable=import-error
 '''
 Constants are stored here for use in other parts of the XBlock.
 '''
+from django.conf import settings
 
 # Needed for review.py #
 # Eventually, this should be part of the XBlock fields as a Boolean
@@ -33,4 +35,4 @@ ENROLLMENT_COURSE_MAPPING = {
     # Anant's course
     'course-v1:MITx+6.002.3x+2T2016': 'course-v1:MITx+6.002.3x_review+2T2016',
 }
-TEMPLATE_URL = 'https://courses.edx.org/xblock/block-v1:{course_id}+type@{type}+block@{xblock_id}'
+TEMPLATE_URL = settings.LMS_ROOT_URL + '/xblock/block-v1:{course_id}+type@{type}+block@{xblock_id}'

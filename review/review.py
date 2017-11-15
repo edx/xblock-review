@@ -2,14 +2,16 @@
 ''' Review XBlock '''
 
 import logging
+
 import pkg_resources
+
 from xblock.core import XBlock
-from xblock.fields import Integer, String, Scope
+from xblock.fields import Integer, Scope, String
 from xblock.fragment import Fragment
 from xblockutils.resources import ResourceLoader
 
-from .get_review_ids import get_problems, get_vertical
 from .configuration import SHOW_PROBLEMS, SHOW_VERTICAL
+from .get_review_ids import get_problems, get_vertical
 
 log = logging.getLogger(__name__)
 loader = ResourceLoader(__name__)
@@ -38,8 +40,9 @@ class ReviewXBlock(XBlock):
     num_desired = Integer(
         display_name=_('Number of desired review problems'),
         help=_('Defines the number of problems the review module will display '
-               'to the learner.'),
+               'to the learner. You do not need this if displaying a full unit.'),
         default=5,
+        values={"min": 2},
         scope=Scope.content
     )
 
@@ -114,4 +117,8 @@ class ReviewXBlock(XBlock):
         return frag
 
     def studio_view(self, context):
+        '''
+        The view of the ReviewXBlock shown to course teams when they access
+        the XBlock in studio.
+        '''
         return self.student_view(context)
