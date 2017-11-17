@@ -43,4 +43,4 @@ ENROLLMENT_COURSE_MAPPING = {
     'course-v1:MITx+18.01.2x+3T2017': 'course-v1:MITx+18.01.2x_review+3T2017',
     'course-v1:MITx+8.01.2x+3T2017': 'course-v1:MITx+8.01.2x_review+3T2017',
 }
-TEMPLATE_URL = settings.LMS_ROOT_URL + '/xblock/block-v1:{course_id}+type@{type}+block@{xblock_id}'
+TEMPLATE_URL = settings.LMS_ROOT_URL + '/xblock/'

@@ -40,8 +40,9 @@ class ReviewXBlock(XBlock):
     num_desired = Integer(
         display_name=_('Number of desired review problems'),
         help=_('Defines the number of problems the review module will display '
-               'to the learner.'),
+               'to the learner. You do not need this if displaying a full unit.'),
         default=5,
+        values={"min": 2},
         scope=Scope.content
     )
 

@@ -22,7 +22,7 @@ from enrollment.api import add_enrollment, get_enrollment, update_enrollment
 from lms.djangoapps.course_blocks.api import get_course_blocks
 from xmodule.modulestore.django import modulestore
 
-from .configuration import ENROLLMENT_COURSE_MAPPING, REVIEW_COURSE_MAPPING, TEMPLATE_URL
+from .configuration import ENROLLMENT_COURSE_MAPPING, TEMPLATE_URL
 
 log = logging.getLogger(__name__)
 
@@ -51,19 +51,17 @@ def get_problems(num_desired, current_course):
     for block_key, state in get_records(user, current_course):
         if is_valid_problem(store, block_key, state):
             correct, attempts = get_correctness_and_attempts(state)
-            problem_id = block_key.block_id
-            problem_data.append((problem_id, correct, attempts))
-            delete_state_of_review_problem(user, current_course, problem_id)
+            review_block_key = block_key.replace(course=block_key.course+'_review')
+            problem_data.append((review_block_key, correct, attempts))
+            delete_state_of_review_problem(user, current_course, review_block_key)
 
     if len(problem_data) < num_desired:
         return []
 
     problems_to_show = random.sample(problem_data, num_desired)
-    review_course_id = REVIEW_COURSE_MAPPING[str(current_course)]
     problem_information = []
-    for problem, correct, attempts in problems_to_show:
-        problem_information.append((TEMPLATE_URL.format(course_id=review_course_id,
-                                    type='problem', xblock_id=problem), correct, attempts))
+    for review_block_key, correct, attempts in problems_to_show:
+        problem_information.append((TEMPLATE_URL + str(review_block_key), correct, attempts))
     return problem_information
 
 
@@ -91,17 +89,15 @@ def get_vertical(current_course):
     for block_key, state in get_records(user, current_course):
         if is_valid_problem(store, block_key, state):
             parent = course_blocks.get_parents(block_key)[0]
-            vertical_id = parent.block_id
-            vertical_data.add(vertical_id)
-            delete_state_of_review_problem(user, current_course, block_key.block_id)
+            vertical_data.add(parent)
+            review_block_key = block_key.replace(course=block_key.course+'_review')
+            delete_state_of_review_problem(user, current_course, review_block_key)
 
     if not vertical_data:
         return []
 
     vertical_to_show = random.sample(vertical_data, 1)[0]
-    review_course_id = REVIEW_COURSE_MAPPING[str(current_course)]
-    return (TEMPLATE_URL.format(course_id=review_course_id,
-                                type='vertical', xblock_id=vertical_to_show))
+    return TEMPLATE_URL + str(vertical_to_show)
 
 
 def get_records(user, current_course):
@@ -148,7 +144,7 @@ def enroll_user_in_review_course(user, current_course):
         update_enrollment(user.username, enrollment_course_id, is_active=True)
 
 
-def delete_state_of_review_problem(user, current_course, problem_id):
+def delete_state_of_review_problem(user, current_course, review_block_key):
     '''
     Deletes the state of a review problem so it can be used infinitely
     many times.
@@ -156,16 +152,17 @@ def delete_state_of_review_problem(user, current_course, problem_id):
     Parameters:
         user (User): the current user interacting with the review XBlock
         current_course (CourseLocator): The course the learner is currently in
-        problem_id (str): The problem id whose state should be cleared
+        # TODO update params
     '''
     review_course = current_course.replace(course=current_course.course+'_review')
-    review_key = review_course.make_usage_key('problem', problem_id)
+    log.critical(review_block_key)
     try:
         module_to_delete = StudentModule.objects.get(
             student_id=user.id,
             course_id=review_course,
-            module_state_key=review_key
+            module_state_key=review_block_key
         )
+        log.critical(module_to_delete)
         module_to_delete.delete()
     except StudentModule.DoesNotExist:
         # The record will not exist in the StudentModule if the learner has not
