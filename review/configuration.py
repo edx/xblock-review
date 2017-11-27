@@ -15,6 +15,7 @@ SHOW_PROBLEMS = set([
 SHOW_VERTICAL = set([
     'course-v1:MITx+2.01x+3T2017',
     'course-v1:MITx+8.01.2x+3T2017',
+    'course-v1:DillonX+DAD104+3T2017',
 ])
 
 # Needed for get_review_ids.py #
@@ -33,6 +34,7 @@ REVIEW_COURSE_MAPPING = {
     'course-v1:MITx+2.01x+3T2017': 'MITx+2.01x_review+3T2017',
     'course-v1:MITx+18.01.2x+3T2017': 'MITx+18.01.2x_review+3T2017',
     'course-v1:MITx+8.01.2x+3T2017': 'MITx+8.01.2x_review+3T2017',
+    'course-v1:DillonX+DAD104+3T2017': 'DillonX+DAD104_review+3T2017'
 }
 ENROLLMENT_COURSE_MAPPING = {
     # Course used for testing. DO NOT REMOVE
@@ -42,5 +44,6 @@ ENROLLMENT_COURSE_MAPPING = {
     'course-v1:MITx+2.01x+3T2017': 'course-v1:MITx+2.01x_review+3T2017',
     'course-v1:MITx+18.01.2x+3T2017': 'course-v1:MITx+18.01.2x_review+3T2017',
     'course-v1:MITx+8.01.2x+3T2017': 'course-v1:MITx+8.01.2x_review+3T2017',
+    'course-v1:DillonX+DAD104+3T2017': 'course-v1:DillonX+DAD104_review+3T2017'
 }
-TEMPLATE_URL = settings.LMS_ROOT_URL + '/xblock/'
+XBLOCK_VIEW_URL_TEMPLATE = settings.LMS_ROOT_URL + '/xblock/'

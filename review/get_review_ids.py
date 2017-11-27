@@ -22,7 +22,7 @@ from enrollment.api import add_enrollment, get_enrollment, update_enrollment
 from lms.djangoapps.course_blocks.api import get_course_blocks
 from xmodule.modulestore.django import modulestore
 
-from .configuration import ENROLLMENT_COURSE_MAPPING, TEMPLATE_URL
+from .configuration import ENROLLMENT_COURSE_MAPPING, XBLOCK_VIEW_URL_TEMPLATE
 
 log = logging.getLogger(__name__)
 
@@ -43,13 +43,17 @@ def get_problems(num_desired, current_course):
     '''
     user = crum.get_current_user()
 
-    enroll_user_in_review_course(user, current_course)
+    enroll_user_in_review_course_if_needed(user, current_course)
+
     store = modulestore()
+    course_usage_key = store.make_course_usage_key(current_course)
+    course_blocks = get_course_blocks(user, course_usage_key)
 
     problem_data = []
 
     for block_key, state in get_records(user, current_course):
-        if is_valid_problem(store, block_key, state):
+        block_key = block_key.replace(course_key=store.fill_in_run(block_key.course_key))
+        if is_valid_problem(store, block_key, state, course_blocks):
             correct, attempts = get_correctness_and_attempts(state)
             review_block_key = block_key.replace(course=block_key.course+'_review')
             problem_data.append((review_block_key, correct, attempts))
@@ -61,7 +65,7 @@ def get_problems(num_desired, current_course):
     problems_to_show = random.sample(problem_data, num_desired)
     problem_information = []
     for review_block_key, correct, attempts in problems_to_show:
-        problem_information.append((TEMPLATE_URL + str(review_block_key), correct, attempts))
+        problem_information.append((XBLOCK_VIEW_URL_TEMPLATE + str(review_block_key), correct, attempts))
     return problem_information
 
 
@@ -78,7 +82,7 @@ def get_vertical(current_course):
     '''
     user = crum.get_current_user()
 
-    enroll_user_in_review_course(user, current_course)
+    enroll_user_in_review_course_if_needed(user, current_course)
 
     store = modulestore()
     course_usage_key = store.make_course_usage_key(current_course)
@@ -87,9 +91,25 @@ def get_vertical(current_course):
     vertical_data = set()
 
     for block_key, state in get_records(user, current_course):
-        if is_valid_problem(store, block_key, state):
-            parent = course_blocks.get_parents(block_key)[0]
-            vertical_data.add(parent)
+        block_key = block_key.replace(course_key=store.fill_in_run(block_key.course_key))
+        if is_valid_problem(store, block_key, state, course_blocks):
+            vertical = course_blocks.get_parents(block_key)[0]
+            sequential = course_blocks.get_parents(vertical)[0]
+
+            # This is in case the direct parent of a problem is not a vertical,
+            # we want to keep looking until we find the parent vertical to display.
+            # For example, you may see:
+            # sequential -> vertical -> split_test -> problem
+            # OR
+            # sequential -> vertical -> vertical -> problem
+            # OR
+            # sequential -> vertical -> conditional_block -> problem
+            while sequential.block_type != 'sequential':
+                vertical = sequential
+                sequential = course_blocks.get_parents(vertical)[0]
+            review_vertical_key = vertical.replace(course=vertical.course+'_review')
+            vertical_data.add(review_vertical_key)
+
             review_block_key = block_key.replace(course=block_key.course+'_review')
             delete_state_of_review_problem(user, current_course, review_block_key)
 
@@ -97,7 +117,7 @@ def get_vertical(current_course):
         return []
 
     vertical_to_show = random.sample(vertical_data, 1)[0]
-    return TEMPLATE_URL + str(vertical_to_show)
+    return XBLOCK_VIEW_URL_TEMPLATE + str(vertical_to_show)
 
 
 def get_records(user, current_course):
@@ -126,7 +146,7 @@ def get_records(user, current_course):
             yield record.module_state_key, state
 
 
-def enroll_user_in_review_course(user, current_course):
+def enroll_user_in_review_course_if_needed(user, current_course):
     '''
     If the user is not enrolled in the review version of the course,
     they are unable to see any of the problems. This ensures they
@@ -155,14 +175,12 @@ def delete_state_of_review_problem(user, current_course, review_block_key):
         # TODO update params
     '''
     review_course = current_course.replace(course=current_course.course+'_review')
-    log.critical(review_block_key)
     try:
         module_to_delete = StudentModule.objects.get(
             student_id=user.id,
             course_id=review_course,
             module_state_key=review_block_key
         )
-        log.critical(module_to_delete)
         module_to_delete.delete()
     except StudentModule.DoesNotExist:
         # The record will not exist in the StudentModule if the learner has not
@@ -194,13 +212,18 @@ def get_correctness_and_attempts(state):
     return (correct, attempts)
 
 
-def is_valid_problem(store, block_key, state):
+def is_valid_problem(store, block_key, state, course_blocks):
     '''
     Checks a problem to see if it is valid to show to the learner. The
     reason to have this is so learners don't try to cheat by using the
     review problems to find out the correct answer and then using it to
     answer the actual problem.
-    Conditions to be valid:
+
+    Required condition to be valid:
+        The problem is accessible to the learner (checked through the block
+            structure in the course)
+
+    Possible conditions to be valid (at least 1 must be true):
         1) Ungraded (it's ungraded originally so showing it again is okay)
         2) Correctly answered (the learner has already correctly answered
             the problem so it should be fine to show them again.)
@@ -216,6 +239,9 @@ def is_valid_problem(store, block_key, state):
 
     Returns True if the problem is valid, False otherwise
     '''
+    if block_key not in course_blocks:
+        return False
+
     problem = store.get_item(block_key)
     if not problem.graded:
         return True
@@ -229,4 +255,5 @@ def is_valid_problem(store, block_key, state):
         now = now.replace(tzinfo=pytz.utc)
         if now > problem.due:
             return True
+
     return False
