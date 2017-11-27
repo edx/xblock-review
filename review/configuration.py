@@ -35,4 +35,4 @@ ENROLLMENT_COURSE_MAPPING = {
     # Anant's course
     'course-v1:MITx+6.002.3x+2T2016': 'course-v1:MITx+6.002.3x_review+2T2016',
 }
-TEMPLATE_URL = settings.LMS_ROOT_URL + '/xblock/block-v1:{course_id}+type@{type}+block@{xblock_id}'
+XBLOCK_VIEW_URL_TEMPLATE = settings.LMS_ROOT_URL + '/xblock/block-v1:{course_id}+type@{type}+block@{xblock_id}'
