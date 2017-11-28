@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 # TODO: Switch to using CourseLocators and/or CourseKeys everywhere
 
 
-def get_problems(num_desired, current_course):
+def get_problems(num_desired, current_course_key):
     '''
     Looks through all the problems a learner has previously loaded and randomly
     selects num_desired of them. Also checks if the learner had originally
@@ -37,27 +37,27 @@ def get_problems(num_desired, current_course):
 
     Parameters:
         num_desired (int): the number of desired problems to show the learner
-        current_course (CourseLocator): The course the learner is currently in
+        current_course_key (CourseLocator): The course the learner is currently in
 
     Returns a list of num_desired tuples in the form (URL to display, correct, attempts)
     '''
     user = crum.get_current_user()
 
-    enroll_user_in_review_course_if_needed(user, current_course)
+    enroll_user_in_review_course_if_needed(user, current_course_key)
 
     store = modulestore()
-    course_usage_key = store.make_course_usage_key(current_course)
+    course_usage_key = store.make_course_usage_key(current_course_key)
     course_blocks = get_course_blocks(user, course_usage_key)
 
     problem_data = []
 
-    for block_key, state in get_records(user, current_course):
+    for block_key, state in _get_user_accessed_problem_records(user, current_course_key):
         block_key = block_key.replace(course_key=store.fill_in_run(block_key.course_key))
         if is_valid_problem(store, block_key, state, course_blocks):
             correct, attempts = get_correctness_and_attempts(state)
             review_block_key = block_key.replace(course=block_key.course+'_review')
             problem_data.append((review_block_key, correct, attempts))
-            delete_state_of_review_problem(user, current_course, review_block_key)
+            delete_state_of_review_problem(user, current_course_key, review_block_key)
 
     if len(problem_data) < num_desired:
         return []
@@ -69,28 +69,28 @@ def get_problems(num_desired, current_course):
     return problem_information
 
 
-def get_vertical(current_course):
+def get_vertical(current_course_key):
     '''
     Looks through all the problems a learner has previously loaded and
     finds their parent vertical. Then randomly selects a single vertical
     to show the learner.
 
     Parameters:
-        current_course (CourseLocator): The course the learner is currently in
+        current_course_key (CourseLocator): The course the learner is currently in
 
     Returns a url (str) with the vertical id to render for review.
     '''
     user = crum.get_current_user()
 
-    enroll_user_in_review_course_if_needed(user, current_course)
+    enroll_user_in_review_course_if_needed(user, current_course_key)
 
     store = modulestore()
-    course_usage_key = store.make_course_usage_key(current_course)
+    course_usage_key = store.make_course_usage_key(current_course_key)
     course_blocks = get_course_blocks(user, course_usage_key)
 
     vertical_data = set()
 
-    for block_key, state in get_records(user, current_course):
+    for block_key, state in _get_user_accessed_problem_records(user, current_course_key):
         block_key = block_key.replace(course_key=store.fill_in_run(block_key.course_key))
         if is_valid_problem(store, block_key, state, course_blocks):
             vertical = course_blocks.get_parents(block_key)[0]
@@ -111,7 +111,7 @@ def get_vertical(current_course):
             vertical_data.add(review_vertical_key)
 
             review_block_key = block_key.replace(course=block_key.course+'_review')
-            delete_state_of_review_problem(user, current_course, review_block_key)
+            delete_state_of_review_problem(user, current_course_key, review_block_key)
 
     if not vertical_data:
         return []
@@ -120,7 +120,7 @@ def get_vertical(current_course):
     return XBLOCK_VIEW_URL_TEMPLATE + str(vertical_to_show)
 
 
-def get_records(user, current_course):
+def _get_user_accessed_problem_records(user, current_course_key):
     '''
     Generator that yields each applicable record from the Courseware Student
     Module. Each record corresponds to a problem the user has loaded
@@ -128,14 +128,14 @@ def get_records(user, current_course):
 
     Parameters:
         user (django.contrib.auth.models.User): User object for the current user
-        current_course (CourseLocator): The course the learner is currently in
+        current_course_key (CourseLocator): The course the learner is currently in
 
     Returns:
         record.module_state_key (opaque_keys.edx.locator.BlockUsageLocator):
             The locator for the problem
         state (dict): The state of the problem
     '''
-    problem_filter = {'student_id': user.id, 'course_id': current_course, 'module_type': 'problem'}
+    problem_filter = {'student_id': user.id, 'course_id': current_course_key, 'module_type': 'problem'}
     for record in StudentModule.objects.filter(**problem_filter):
         state = json.loads(record.state)
         # The key 'selected' shows up if a problem comes from a
@@ -146,7 +146,7 @@ def get_records(user, current_course):
             yield record.module_state_key, state
 
 
-def enroll_user_in_review_course_if_needed(user, current_course):
+def enroll_user_in_review_course_if_needed(user, current_course_key):
     '''
     If the user is not enrolled in the review version of the course,
     they are unable to see any of the problems. This ensures they
@@ -154,9 +154,9 @@ def enroll_user_in_review_course_if_needed(user, current_course):
 
     Parameters:
         user (User): the current user interacting with the review XBlock
-        current_course (CourseLocator): The course the learner is currently in
+        current_course_key (CourseLocator): The course the learner is currently in
     '''
-    enrollment_course_id = ENROLLMENT_COURSE_MAPPING[str(current_course)]
+    enrollment_course_id = ENROLLMENT_COURSE_MAPPING[str(current_course_key)]
     enrollment_status = get_enrollment(user.username, enrollment_course_id)
     if not enrollment_status:
         add_enrollment(user.username, enrollment_course_id)
@@ -164,17 +164,17 @@ def enroll_user_in_review_course_if_needed(user, current_course):
         update_enrollment(user.username, enrollment_course_id, is_active=True)
 
 
-def delete_state_of_review_problem(user, current_course, review_block_key):
+def delete_state_of_review_problem(user, current_course_key, review_block_key):
     '''
     Deletes the state of a review problem so it can be used infinitely
     many times.
 
     Parameters:
         user (User): the current user interacting with the review XBlock
-        current_course (CourseLocator): The course the learner is currently in
+        current_course_key (CourseLocator): The course the learner is currently in
         # TODO update params
     '''
-    review_course = current_course.replace(course=current_course.course+'_review')
+    review_course = current_course_key.replace(course=current_course_key.course+'_review')
     try:
         module_to_delete = StudentModule.objects.get(
             student_id=user.id,

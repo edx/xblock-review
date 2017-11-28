@@ -59,7 +59,7 @@ class ReviewXBlock(XBlock):
         '''
         # url_list elements have the form (url, correctness, attempts)
         url_list = get_problems(self.num_desired, self.course_id)
-        if len(url_list) == self.num_desired:
+        if url_list:
             review_context_dict = {'number_desired': self.num_desired}
             template = loader.render_django_template('/templates/review.html', review_context_dict)
             # Want to wrap all of the problems inside of a div
