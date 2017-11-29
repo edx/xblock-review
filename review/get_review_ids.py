@@ -20,6 +20,7 @@ import pytz
 from courseware.models import StudentModule
 from enrollment.api import add_enrollment, get_enrollment, update_enrollment
 from lms.djangoapps.course_blocks.api import get_course_blocks
+from lms.djangoapps.grades.transformer import GradesTransformer
 from xmodule.modulestore.django import modulestore
 
 from .configuration import ENROLLMENT_COURSE_MAPPING, XBLOCK_VIEW_URL_TEMPLATE
@@ -93,25 +94,38 @@ def get_vertical(current_course_key):
     for block_key, state in _get_user_accessed_problem_records(user, current_course_key):
         block_key = block_key.replace(course_key=store.fill_in_run(block_key.course_key))
         if is_valid_problem(store, block_key, state, course_blocks):
-            vertical = course_blocks.get_parents(block_key)[0]
-            sequential = course_blocks.get_parents(vertical)[0]
-
-            # This is in case the direct parent of a problem is not a vertical,
-            # we want to keep looking until we find the parent vertical to display.
-            # For example, you may see:
-            # sequential -> vertical -> split_test -> problem
-            # OR
-            # sequential -> vertical -> vertical -> problem
-            # OR
-            # sequential -> vertical -> conditional_block -> problem
-            while sequential.block_type != 'sequential':
-                vertical = sequential
+            # If the block_key does not have a subsection (sequential) in it's tree,
+            # we should skip it.
+            subsection = course_blocks.get_transformer_block_field(
+                block_key,
+                GradesTransformer,
+                'subsections',
+                set(),
+            )
+            if subsection:
+                vertical = course_blocks.get_parents(block_key)[0]
                 sequential = course_blocks.get_parents(vertical)[0]
-            review_vertical_key = vertical.replace(course=vertical.course+'_review')
-            vertical_data.add(review_vertical_key)
 
-            review_block_key = block_key.replace(course=block_key.course+'_review')
-            delete_state_of_review_problem(user, current_course_key, review_block_key)
+                # This is in case the direct parent of a problem is not a vertical,
+                # we want to keep looking until we find the parent vertical to display.
+                # For example, you may see:
+                # sequential -> vertical -> split_test -> problem
+                # OR
+                # sequential -> vertical -> vertical -> problem
+                # OR
+                # sequential -> vertical -> conditional_block -> problem
+                # Note: we know this will not be an infinite loop because with the
+                # above if statement, we are guaranteed there is a 'sequential' in
+                # the block's parent line.
+                while sequential.block_type != 'sequential':
+                    vertical = sequential
+                    sequential = course_blocks.get_parents(vertical)[0]
+
+                review_vertical_key = vertical.replace(course=vertical.course+'_review')
+                vertical_data.add(review_vertical_key)
+
+                review_block_key = block_key.replace(course=block_key.course+'_review')
+                delete_state_of_review_problem(user, current_course_key, review_block_key)
 
     if not vertical_data:
         return []
