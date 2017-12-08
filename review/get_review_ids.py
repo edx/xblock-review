@@ -221,7 +221,10 @@ def get_correctness_and_attempts(state):
         correct (Bool): True if correct, else False
         attempts (int): 0 if never attempted, else number of times attempted
     '''
-    correct = (state['score']['raw_earned'] == state['score']['raw_possible'])
+    correct = None
+    if 'score' in state:
+        if 'raw_earned' in state['score'] and 'raw_possible' in state['score']:
+            correct = (state['score']['raw_earned'] == state['score']['raw_possible'])
 
     if 'attempts' in state:
         attempts = state['attempts']
@@ -244,11 +247,11 @@ def is_valid_problem(store, block_key, state, course_blocks):
 
     Possible conditions to be valid (at least 1 must be true):
         1) Ungraded (it's ungraded originally so showing it again is okay)
-        2) Correctly answered (the learner has already correctly answered
-            the problem so it should be fine to show them again.)
-        3) All attempts have been used. (If all attempts on the actual problem
+        2) All attempts have been used. (If all attempts on the actual problem
             have been used, then it's safe to show them)
-        4) It is past the due date
+        3) It is past the due date
+        4) Correctly answered (the learner has already correctly answered
+            the problem so it should be fine to show them again.)
 
     Parameters:
         store (xmodule.modulestore.mixed.MixedModuleStore): Modulestore
@@ -264,8 +267,6 @@ def is_valid_problem(store, block_key, state, course_blocks):
     problem = store.get_item(block_key)
     if not problem.graded:
         return True
-    if state['score']['raw_earned'] == state['score']['raw_possible']:
-        return True
     if 'attempts' in state:
         if state['attempts'] == problem.max_attempts:
             return True
@@ -274,5 +275,9 @@ def is_valid_problem(store, block_key, state, course_blocks):
         now = now.replace(tzinfo=pytz.utc)
         if now > problem.due:
             return True
+    if 'score' in state:
+        if 'raw_earned' in state['score'] and 'raw_possible' in state['score']:
+            if state['score']['raw_earned'] == state['score']['raw_possible']:
+                return True
 
     return False

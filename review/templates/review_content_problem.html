@@ -8,7 +8,10 @@
     {% endfilter %}
   </button>
   <div id="content-{{ index }}" class="review-content" aria-labelledby="section-heading-{{ index }}">
-    {% if correctness %}
+    <!-- We explicitly check if it is True or False since correctness will be None if it
+    is unable to be determined in review/get_review_ids.py. In that case, we do not want
+    to show any text about the original attempt. -->
+    {% if correctness == True %}
       <p>
         {% filter force_escape %}
           {% blocktrans %}
@@ -16,7 +19,7 @@
           {% endblocktrans %}
         {% endfilter %}
       </p>
-    {% else %}
+    {% elif correctness == False %}
       <p>
         {% filter force_escape %}
           {% blocktrans %}
