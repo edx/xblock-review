@@ -49,16 +49,19 @@ def get_problems(num_desired, current_course_key):
     store = modulestore()
     course_usage_key = store.make_course_usage_key(current_course_key)
     course_blocks = get_course_blocks(user, course_usage_key)
+    review_course = current_course_key.replace(course=current_course_key.course+'_review')
+    review_course_usage_key = store.make_course_usage_key(review_course)
+    review_course_blocks = get_course_blocks(user, review_course_usage_key)
 
     problem_data = []
 
     for block_key, state in _get_user_accessed_problem_records(user, current_course_key):
         block_key = block_key.replace(course_key=store.fill_in_run(block_key.course_key))
-        if is_valid_problem(store, block_key, state, course_blocks):
+        review_block_key = block_key.replace(course=block_key.course+'_review')
+        if is_valid_problem(store, block_key, state, course_blocks, review_block_key, review_course_blocks):
             correct, attempts = get_correctness_and_attempts(state)
-            review_block_key = block_key.replace(course=block_key.course+'_review')
             problem_data.append((review_block_key, correct, attempts))
-            delete_state_of_review_problem(user, current_course_key, review_block_key)
+            delete_state_of_review_problem(user, review_course, review_block_key)
 
     if len(problem_data) < num_desired:
         return []
@@ -88,12 +91,16 @@ def get_vertical(current_course_key):
     store = modulestore()
     course_usage_key = store.make_course_usage_key(current_course_key)
     course_blocks = get_course_blocks(user, course_usage_key)
+    review_course = current_course_key.replace(course=current_course_key.course+'_review')
+    review_course_usage_key = store.make_course_usage_key(review_course)
+    review_course_blocks = get_course_blocks(user, review_course_usage_key)
 
     vertical_data = set()
 
     for block_key, state in _get_user_accessed_problem_records(user, current_course_key):
         block_key = block_key.replace(course_key=store.fill_in_run(block_key.course_key))
-        if is_valid_problem(store, block_key, state, course_blocks):
+        review_block_key = block_key.replace(course=block_key.course+'_review')
+        if is_valid_problem(store, block_key, state, course_blocks, review_block_key, review_course_blocks):
             # If the block_key does not have a subsection (sequential) in it's tree,
             # we should skip it.
             subsection = course_blocks.get_transformer_block_field(
@@ -125,7 +132,7 @@ def get_vertical(current_course_key):
                 vertical_data.add(review_vertical_key)
 
                 review_block_key = block_key.replace(course=block_key.course+'_review')
-                delete_state_of_review_problem(user, current_course_key, review_block_key)
+                delete_state_of_review_problem(user, review_course, review_block_key)
 
     if not vertical_data:
         return []
@@ -178,7 +185,7 @@ def enroll_user_in_review_course_if_needed(user, current_course_key):
         update_enrollment(user.username, enrollment_course_id, is_active=True)
 
 
-def delete_state_of_review_problem(user, current_course_key, review_block_key):
+def delete_state_of_review_problem(user, review_course, review_key):
     '''
     Deletes the state of a review problem so it can be used infinitely
     many times.
@@ -188,12 +195,11 @@ def delete_state_of_review_problem(user, current_course_key, review_block_key):
         current_course_key (CourseLocator): The course the learner is currently in
         # TODO update params
     '''
-    review_course = current_course_key.replace(course=current_course_key.course+'_review')
     try:
         module_to_delete = StudentModule.objects.get(
             student_id=user.id,
             course_id=review_course,
-            module_state_key=review_block_key
+            module_state_key=review_key
         )
         module_to_delete.delete()
     except StudentModule.DoesNotExist:
@@ -226,7 +232,7 @@ def get_correctness_and_attempts(state):
     return (correct, attempts)
 
 
-def is_valid_problem(store, block_key, state, course_blocks):
+def is_valid_problem(store, block_key, state, course_blocks, review_block_key, review_course_blocks):
     '''
     Checks a problem to see if it is valid to show to the learner. The
     reason to have this is so learners don't try to cheat by using the
@@ -239,11 +245,11 @@ def is_valid_problem(store, block_key, state, course_blocks):
 
     Possible conditions to be valid (at least 1 must be true):
         1) Ungraded (it's ungraded originally so showing it again is okay)
-        2) Correctly answered (the learner has already correctly answered
-            the problem so it should be fine to show them again.)
-        3) All attempts have been used. (If all attempts on the actual problem
+        2) All attempts have been used. (If all attempts on the actual problem
             have been used, then it's safe to show them)
-        4) It is past the due date
+        3) It is past the due date
+        4) Correctly answered (the learner has already correctly answered
+            the problem so it should be fine to show them again.)
 
     Parameters:
         store (xmodule.modulestore.mixed.MixedModuleStore): Modulestore
@@ -253,13 +259,15 @@ def is_valid_problem(store, block_key, state, course_blocks):
 
     Returns True if the problem is valid, False otherwise
     '''
-    if block_key not in course_blocks:
+    log.critical(block_key)
+    log.critical(block_key not in course_blocks)
+    log.critical(review_block_key)
+    log.critical(review_block_key not in review_course_blocks)
+    if block_key not in course_blocks or review_block_key not in review_course_blocks:
         return False
 
     problem = store.get_item(block_key)
     if not problem.graded:
-        return True
-    if state['score']['raw_earned'] == state['score']['raw_possible']:
         return True
     if 'attempts' in state:
         if state['attempts'] == problem.max_attempts:
@@ -269,5 +277,7 @@ def is_valid_problem(store, block_key, state, course_blocks):
         now = now.replace(tzinfo=pytz.utc)
         if now > problem.due:
             return True
+    if state['score']['raw_earned'] == state['score']['raw_possible']:
+        return True
 
     return False
