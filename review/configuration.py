@@ -11,6 +11,8 @@ SHOW_PROBLEMS = set([
     'DillonX/DAD101x/3T2017',
     # Anant's course
     'course-v1:MITx+6.002.3x_1+2T2016',
+    # Quantum Information Science, Part 1
+    'course-v1:MITx+8.370.1x+1T2018',
 ])
 SHOW_VERTICAL = set([
 ])
@@ -28,11 +30,15 @@ REVIEW_COURSE_MAPPING = {
     'DillonX/DAD101x/3T2017': 'DillonX/DAD101x_review/3T2017',
     # Anant's course
     'course-v1:MITx+6.002.3x_1+2T2016': 'MITx+6.002.3x_1_review+2T2016',
+    # Quantum Information Science, Part 1
+    'course-v1:MITx+8.370.1x+1T2018': 'MITx+8.370.1x_review+1T2018',
 }
 ENROLLMENT_COURSE_MAPPING = {
     # Course used for testing. DO NOT REMOVE
     'DillonX/DAD101x/3T2017': 'DillonX/DAD101x_review/3T2017',
     # Anant's course
     'course-v1:MITx+6.002.3x_1+2T2016': 'course-v1:MITx+6.002.3x_1_review+2T2016',
+    # Quantum Information Science, Part 1
+    'course-v1:MITx+8.370.1x+1T2018': 'course-v1:MITx+8.370.1x_review+1T2018',
 }
 XBLOCK_VIEW_URL_TEMPLATE = settings.LMS_ROOT_URL + '/xblock/block-v1:{course_id}+type@{type}+block@{xblock_id}'
