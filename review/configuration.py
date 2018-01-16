@@ -32,6 +32,10 @@ REVIEW_COURSE_MAPPING = {
     'course-v1:MITx+6.002.3x_1+2T2016': 'MITx+6.002.3x_1_review+2T2016',
     # Quantum Information Science, Part 1
     'course-v1:MITx+8.370.1x+1T2018': 'MITx+8.370.1x_review+1T2018',
+    # Quantum Information Science, Part 2
+    'course-v1:MITx+8.370.2x+1T2018': 'MITx+8.370.2x_review+1T2018',
+    # Quantum Information Science, Part 3
+    'course-v1:MITx+8.370.3x+1T2018': 'MITx+8.370.3x_review+1T2018',
 }
 ENROLLMENT_COURSE_MAPPING = {
     # Course used for testing. DO NOT REMOVE
@@ -40,5 +44,9 @@ ENROLLMENT_COURSE_MAPPING = {
     'course-v1:MITx+6.002.3x_1+2T2016': 'course-v1:MITx+6.002.3x_1_review+2T2016',
     # Quantum Information Science, Part 1
     'course-v1:MITx+8.370.1x+1T2018': 'course-v1:MITx+8.370.1x_review+1T2018',
+    # Quantum Information Science, Part 2
+    'course-v1:MITx+8.370.2x+1T2018': 'MITx+8.370.2x_review+1T2018',
+    # Quantum Information Science, Part 3
+    'course-v1:MITx+8.370.3x+1T2018': 'MITx+8.370.3x_review+1T2018',
 }
 XBLOCK_VIEW_URL_TEMPLATE = settings.LMS_ROOT_URL + '/xblock/block-v1:{course_id}+type@{type}+block@{xblock_id}'
