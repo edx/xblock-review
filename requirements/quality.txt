@@ -1,3 +1,3 @@
 pep8==1.7.0
 readme_renderer
-git+https://github.com/edx/edx-lint.git@0.5.4#egg=edx_lint==0.5.4
+edx_lint==0.5.5
