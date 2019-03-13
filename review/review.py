@@ -6,7 +6,7 @@ import logging
 
 import pkg_resources
 
-from six.moves import xrange
+from six.moves import range
 
 from xblock.core import XBlock
 from xblock.fields import Integer, Scope, String
@@ -15,7 +15,6 @@ from xblockutils.resources import ResourceLoader
 
 from .configuration import SHOW_PROBLEMS, SHOW_VERTICAL
 from .get_review_ids import get_problems, get_vertical
-from six.moves import range
 
 log = logging.getLogger(__name__)
 loader = ResourceLoader(__name__)

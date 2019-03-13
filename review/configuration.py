@@ -1,4 +1,3 @@
-# pylint: disable=import-error
 '''
 Constants are stored here for use in other parts of the XBlock.
 '''
