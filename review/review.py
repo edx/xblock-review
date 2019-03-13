@@ -1,6 +1,7 @@
 # pylint: disable=import-error
 ''' Review XBlock '''
 
+from __future__ import absolute_import
 import logging
 
 import pkg_resources
@@ -14,6 +15,7 @@ from xblockutils.resources import ResourceLoader
 
 from .configuration import SHOW_PROBLEMS, SHOW_VERTICAL
 from .get_review_ids import get_problems, get_vertical
+from six.moves import range
 
 log = logging.getLogger(__name__)
 loader = ResourceLoader(__name__)
@@ -67,7 +69,7 @@ class ReviewXBlock(XBlock):
             # Want to wrap all of the problems inside of a div
             template += '<div>\n'
 
-            for i in xrange(self.num_desired):
+            for i in range(self.num_desired):
                 problem_url, correctness, num_attempts = url_list[i]
                 prob_context_dict = {
                     'problem_url': problem_url,
