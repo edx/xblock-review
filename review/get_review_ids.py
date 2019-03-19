@@ -10,6 +10,7 @@ grades. There are two ways review content can be grabbed:
     On a unit basis (this would be single view that contains multiple problems)
 '''
 
+from __future__ import absolute_import
 import json
 import logging
 import random

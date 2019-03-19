@@ -1,7 +1,7 @@
-# pylint: disable=import-error
 '''
 Constants are stored here for use in other parts of the XBlock.
 '''
+from __future__ import absolute_import
 from django.conf import settings
 
 # Needed for review.py #
